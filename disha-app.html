@@ -8,227 +8,302 @@
 <style>
   :root {
     --bg: #050a0f;
-    --surface: #0a1520;
-    --panel: #0d1e2e;
-    --border: #1a3a52;
-    --border-glow: #1e6fa0;
-    --accent: #00d4ff;
-    --accent2: #00ff9d;
+    --surface: #080f18;
+    --panel: #0a1520;
+    --border: #152840;
+    --border-glow: #1e5a80;
+    --accent: #00c8f0;
+    --accent2: #00f5a0;
     --warn: #ffb300;
-    --danger: #ff3b30;
-    --text: #c8e6f5;
-    --text-dim: #5a8a9f;
-    --text-bright: #e8f8ff;
-    --grid: rgba(0,212,255,0.04);
-    --safe: #00ff9d;
+    --danger: #ff3535;
+    --text: #b0d8f0;
+    --text-dim: #3d6880;
+    --text-bright: #e0f5ff;
+    --safe: #00f5a0;
+    --grid: rgba(0,200,240,0.03);
     --font-hud: 'Rajdhani', sans-serif;
     --font-mono: 'Share Tech Mono', monospace;
     --font-body: 'Exo 2', sans-serif;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
+
   body {
     background: var(--bg); color: var(--text);
     font-family: var(--font-body); min-height:100vh; overflow-x:hidden;
-    background-image: linear-gradient(var(--grid) 1px,transparent 1px),
-      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-    background-size: 40px 40px;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 48px 48px;
   }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
   header {
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 32px; background:rgba(10,21,32,0.95);
-    border-bottom:1px solid var(--border); backdrop-filter:blur(12px);
-    position:sticky; top:0; z-index:100;
+    padding:12px 28px;
+    background: rgba(5,10,15,0.96);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    position: sticky; top:0; z-index:100;
   }
   .logo { display:flex; align-items:center; gap:14px; }
   .logo-icon {
-    width:40px; height:40px; border:2px solid var(--accent); border-radius:8px;
+    width:38px; height:38px; border:1.5px solid var(--accent); border-radius:6px;
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--font-hud); font-weight:700; font-size:16px; color:var(--accent);
-    box-shadow:0 0 16px rgba(0,212,255,0.3),inset 0 0 8px rgba(0,212,255,0.1);
-    animation:pulse-border 3s ease-in-out infinite;
+    font-family:var(--font-hud); font-weight:700; font-size:15px; color:var(--accent);
+    box-shadow: 0 0 18px rgba(0,200,240,0.25), inset 0 0 10px rgba(0,200,240,0.08);
+    animation: pulse-border 3s ease-in-out infinite;
+    letter-spacing:0;
   }
   @keyframes pulse-border {
-    0%,100%{box-shadow:0 0 16px rgba(0,212,255,0.3),inset 0 0 8px rgba(0,212,255,0.1);}
-    50%{box-shadow:0 0 28px rgba(0,212,255,0.6),inset 0 0 14px rgba(0,212,255,0.2);}
+    0%,100%{ box-shadow:0 0 18px rgba(0,200,240,0.25),inset 0 0 10px rgba(0,200,240,0.08); }
+    50%     { box-shadow:0 0 32px rgba(0,200,240,0.55),inset 0 0 18px rgba(0,200,240,0.18); }
   }
-  .logo-text { font-family:var(--font-hud); }
-  .logo-text h1 { font-size:22px; font-weight:700; color:var(--text-bright); letter-spacing:3px; }
-  .logo-text p  { font-size:10px; color:var(--text-dim); letter-spacing:1.5px; text-transform:uppercase; }
-  .header-right { display:flex; align-items:center; gap:24px; }
+  .logo-text h1 { font-family:var(--font-hud); font-size:20px; font-weight:700; color:var(--text-bright); letter-spacing:3px; }
+  .logo-text p  { font-size:10px; color:var(--text-dim); letter-spacing:1.5px; text-transform:uppercase; font-family:var(--font-mono); }
+  .header-right { display:flex; align-items:center; gap:20px; }
+  .arch-badge {
+    font-family:var(--font-mono); font-size:10px; color:var(--accent2);
+    background:rgba(0,245,160,0.06); border:1px solid rgba(0,245,160,0.25);
+    padding:4px 10px; border-radius:3px; letter-spacing:1px;
+  }
   .status-pill {
-    display:flex; align-items:center; gap:8px; padding:6px 14px;
+    display:flex; align-items:center; gap:7px; padding:5px 12px;
     border:1px solid var(--border); border-radius:20px;
     font-family:var(--font-mono); font-size:11px; color:var(--text-dim);
-    background:rgba(255,255,255,0.03); transition:all 0.4s;
+    background:rgba(255,255,255,0.02); transition:all 0.4s;
   }
-  .status-pill.active { border-color:var(--accent2); color:var(--accent2); background:rgba(0,255,157,0.06); }
-  .status-dot {
-    width:7px; height:7px; border-radius:50%; background:var(--text-dim);
-    transition:all 0.4s;
-  }
+  .status-pill.active { border-color:var(--accent2); color:var(--accent2); background:rgba(0,245,160,0.05); }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:var(--text-dim); transition:all 0.4s; }
   .status-pill.active .status-dot { background:var(--accent2); box-shadow:0 0 8px var(--accent2); animation:blink 1.5s ease-in-out infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  .time-display { font-family:var(--font-mono); font-size:13px; color:var(--text-dim); letter-spacing:1px; }
+  .clock { font-family:var(--font-mono); font-size:13px; color:var(--text-dim); letter-spacing:1px; }
 
+  /* ── LAYOUT ─────────────────────────────────────────────── */
   .app {
-    display:grid; grid-template-columns:320px 1fr 280px;
-    grid-template-rows:auto 1fr auto; gap:0; min-height:calc(100vh - 69px);
+    display:grid;
+    grid-template-columns: 300px 1fr 268px;
+    min-height: calc(100vh - 65px);
   }
-  .panel { border-right:1px solid var(--border); background:var(--surface); }
-  .panel-header {
-    padding:16px 20px 12px; border-bottom:1px solid var(--border);
+  .col { border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .col:last-child { border-right:none; }
+
+  /* ── PANEL HEADER ─────────────────────────────────────── */
+  .ph {
+    padding:12px 18px; border-bottom:1px solid var(--border);
     display:flex; align-items:center; justify-content:space-between;
+    background:rgba(8,15,24,0.7);
   }
-  .panel-title { font-family:var(--font-hud); font-size:11px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:var(--text-dim); }
-  .panel-badge {
+  .ph-title { font-family:var(--font-mono); font-size:10px; color:var(--text-dim); letter-spacing:2.5px; text-transform:uppercase; }
+  .ph-badge {
     font-family:var(--font-mono); font-size:10px; color:var(--accent);
-    background:rgba(0,212,255,0.1); border:1px solid rgba(0,212,255,0.3);
+    background:rgba(0,200,240,0.08); border:1px solid rgba(0,200,240,0.25);
     padding:2px 8px; border-radius:3px;
   }
-  .left-panel { grid-row:1/4; }
-  .metric-block { padding:18px 20px; border-bottom:1px solid var(--border); position:relative; transition:background 0.3s; }
-  .metric-block:hover { background:rgba(0,212,255,0.03); }
-  .metric-label {
-    font-family:var(--font-mono); font-size:10px; color:var(--text-dim);
-    letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;
-    display:flex; align-items:center; gap:8px;
-  }
-  .metric-label::before { content:''; display:block; width:3px; height:12px; background:var(--accent); border-radius:2px; box-shadow:0 0 6px var(--accent); }
-  .big-display { display:flex; align-items:baseline; gap:6px; margin-bottom:10px; }
-  .big-val { font-family:var(--font-hud); font-size:40px; font-weight:700; color:var(--text-bright); line-height:1; transition:color 0.3s; }
-  .big-unit { font-family:var(--font-mono); font-size:12px; color:var(--text-dim); }
-  .thresh-bar { position:relative; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:visible; margin-top:8px; }
-  .thresh-fill { height:100%; border-radius:3px; transition:width 0.15s,background 0.3s; position:relative; }
-  .thresh-fill::after { content:''; position:absolute; right:-1px; top:-2px; width:10px; height:10px; border-radius:50%; background:inherit; box-shadow:0 0 8px currentColor; }
-  .thresh-mark { position:absolute; top:-4px; width:2px; height:14px; background:var(--warn); border-radius:1px; box-shadow:0 0 6px var(--warn); }
-  .thresh-labels { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between; }
-  /* sub-metrics row */
-  .sub-row { display:flex; gap:10px; margin-top:10px; }
-  .sub-cell { flex:1; text-align:center; padding:6px; background:rgba(0,0,0,0.2); border-radius:4px; border:1px solid rgba(255,255,255,0.05); }
-  .sub-label { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); text-transform:uppercase; }
-  .sub-val { font-family:var(--font-hud); font-size:16px; font-weight:600; color:var(--text-bright); transition:color 0.3s; }
+
+  /* ── LEFT COLUMN — METRICS ────────────────────────────── */
+  .metric-block { padding:16px 18px; border-bottom:1px solid var(--border); }
+  .ml { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:9px; display:flex; align-items:center; gap:8px; }
+  .ml::before { content:''; display:block; width:2px; height:11px; background:var(--accent); border-radius:1px; box-shadow:0 0 5px var(--accent); flex-shrink:0; }
+  .ml-ref { font-size:8px; color:rgba(61,104,128,0.7); margin-left:auto; font-style:italic; }
+
+  /* EAR big display */
+  .big-display { display:flex; align-items:baseline; gap:5px; margin-bottom:8px; }
+  .big-val { font-family:var(--font-hud); font-size:38px; font-weight:700; color:var(--text-bright); line-height:1; transition:color 0.3s; }
+  .big-unit { font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+
+  .bar-wrap { position:relative; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:visible; margin-top:6px; }
+  .bar-fill { height:100%; border-radius:3px; transition:width 0.12s, background 0.3s; }
+  .bar-mark { position:absolute; top:-4px; width:2px; height:13px; background:var(--warn); border-radius:1px; box-shadow:0 0 5px var(--warn); }
+  .bar-labels { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); margin-top:5px; display:flex; justify-content:space-between; }
+
+  .sub-row { display:flex; gap:8px; margin-top:10px; }
+  .sub-cell { flex:1; text-align:center; padding:5px 4px; background:rgba(0,0,0,0.2); border-radius:4px; border:1px solid rgba(255,255,255,0.04); }
+  .sub-lbl { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
+  .sub-val { font-family:var(--font-hud); font-size:15px; font-weight:600; color:var(--text-bright); transition:color 0.3s; }
+
   /* Eye diagram */
-  .eye-diagram { display:flex; gap:16px; justify-content:center; padding:12px 0 4px; }
-  .eye-svg { width:70px; }
-  .eye-label { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); text-align:center; margin-top:4px; }
-  /* State indicators */
-  .state-row { display:flex; flex-direction:column; gap:8px; padding:4px 0; }
-  .state-item {
+  .eye-row { display:flex; gap:14px; justify-content:center; padding:10px 0 2px; }
+  .eye-svg { width:66px; }
+  .eye-lbl { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); text-align:center; margin-top:3px; }
+
+  /* States */
+  .state-list { display:flex; flex-direction:column; gap:6px; }
+  .si {
     display:flex; align-items:center; justify-content:space-between;
-    padding:8px 12px; border:1px solid rgba(255,255,255,0.05);
-    border-radius:6px; background:rgba(255,255,255,0.02); transition:all 0.3s;
+    padding:7px 11px; border:1px solid rgba(255,255,255,0.04);
+    border-radius:5px; background:rgba(255,255,255,0.015); transition:all 0.25s;
   }
-  .state-item.active { border-color:var(--danger); background:rgba(255,59,48,0.08); }
-  .state-item.active .state-name { color:var(--danger); }
-  .state-item.warn { border-color:var(--warn); background:rgba(255,179,0,0.06); }
-  .state-item.warn .state-name { color:var(--warn); }
-  .state-name { font-family:var(--font-hud); font-size:13px; font-weight:600; color:var(--text); letter-spacing:0.5px; transition:color 0.3s; }
-  .state-val { font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
-  .state-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.12); transition:all 0.3s; }
-  .state-item.active .state-dot { background:var(--danger); box-shadow:0 0 8px var(--danger); }
-  .state-item.warn .state-dot { background:var(--warn); box-shadow:0 0 8px var(--warn); animation:blink 1s infinite; }
-  /* Center panel */
-  .center-panel { grid-row:1/3; border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--panel); }
-  .cam-area { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; gap:16px; position:relative; }
-  .camera-container {
+  .si.active { border-color:var(--danger); background:rgba(255,53,53,0.07); }
+  .si.warn   { border-color:var(--warn);   background:rgba(255,179,0,0.06); }
+  .si-left { display:flex; align-items:center; gap:8px; }
+  .si-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.1); transition:all 0.25s; flex-shrink:0; }
+  .si.active .si-dot { background:var(--danger); box-shadow:0 0 7px var(--danger); }
+  .si.warn   .si-dot { background:var(--warn); box-shadow:0 0 7px var(--warn); animation:blink 1s infinite; }
+  .si-name { font-family:var(--font-hud); font-size:13px; font-weight:600; color:var(--text); letter-spacing:0.3px; transition:color 0.25s; }
+  .si.active .si-name { color:var(--danger); }
+  .si.warn   .si-name { color:var(--warn); }
+  .si-val { font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+
+  /* LSTM temporal section */
+  .temporal-scores { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
+  .ts-cell { padding:7px 6px; background:rgba(0,0,0,0.25); border-radius:4px; border:1px solid rgba(0,200,240,0.1); text-align:center; }
+  .ts-lbl { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; }
+  .ts-val { font-family:var(--font-hud); font-size:18px; font-weight:700; color:var(--accent); margin-top:2px; transition:color 0.3s; }
+  .ts-bar { height:3px; background:rgba(255,255,255,0.05); border-radius:2px; margin-top:4px; }
+  .ts-bar-fill { height:100%; background:var(--accent); border-radius:2px; transition:width 0.15s; }
+
+  /* ── CENTER COLUMN ────────────────────────────────────── */
+  .center-col { background:var(--panel); }
+
+  .cam-area { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:12px; }
+  .cam-wrap {
     position:relative; width:100%; max-width:640px;
     border:1px solid var(--border-glow); border-radius:4px; overflow:hidden;
-    box-shadow:0 0 40px rgba(0,212,255,0.1),inset 0 0 20px rgba(0,0,0,0.5);
-    background:#010a12; aspect-ratio:4/3;
+    box-shadow: 0 0 50px rgba(0,200,240,0.08), inset 0 0 30px rgba(0,0,0,0.6);
+    background:#010810; aspect-ratio:4/3;
   }
-  .camera-container::before,.camera-container::after { content:''; position:absolute; z-index:10; pointer-events:none; }
-  .camera-container::before { inset:0; background:linear-gradient(to bottom,rgba(0,212,255,0.04) 0%,transparent 30%,transparent 70%,rgba(0,212,255,0.04) 100%); }
-  .camera-container::after { top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:scan-line 3s linear infinite; }
-  @keyframes scan-line { 0%{top:0;opacity:0;} 10%{opacity:1;} 90%{opacity:1;} 100%{top:100%;opacity:0;} }
-  #cam-img { width:100%; height:100%; display:block; object-fit:cover; filter:contrast(1.05) brightness(1.05); }
-  .cam-placeholder { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:320px; }
-  .cam-placeholder svg { opacity:0.15; }
-  .cam-placeholder p { font-family:var(--font-mono); font-size:12px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
-  .cam-corner { position:absolute; z-index:8; pointer-events:none; width:24px; height:24px; }
-  .cam-corner.tl { top:8px; left:8px; border-top:2px solid var(--accent); border-left:2px solid var(--accent); }
-  .cam-corner.tr { top:8px; right:8px; border-top:2px solid var(--accent); border-right:2px solid var(--accent); }
-  .cam-corner.bl { bottom:8px; left:8px; border-bottom:2px solid var(--accent); border-left:2px solid var(--accent); }
-  .cam-corner.br { bottom:8px; right:8px; border-bottom:2px solid var(--accent); border-right:2px solid var(--accent); }
-  .cam-hud { position:absolute; z-index:9; pointer-events:none; font-family:var(--font-mono); font-size:10px; color:var(--accent); background:rgba(5,10,15,0.7); padding:3px 8px; border-radius:2px; letter-spacing:1px; }
-  .cam-hud.tl { top:14px; left:38px; }
-  .cam-hud.tr { top:14px; right:38px; }
-  .cam-hud.bl { bottom:14px; left:38px; }
-  .cam-hud.br { bottom:14px; right:38px; }
-  .alert-banner { width:100%; max-width:640px; padding:10px 18px; border-radius:4px; border:1px solid; display:flex; align-items:center; gap:12px; font-family:var(--font-hud); font-size:14px; font-weight:600; letter-spacing:1px; opacity:0; transition:opacity 0.3s,transform 0.3s; transform:translateY(4px); }
+  /* Scan line effect */
+  .cam-wrap::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px; z-index:10; pointer-events:none;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scan 3s linear infinite;
+  }
+  @keyframes scan { 0%{top:0;opacity:0} 5%{opacity:.8} 95%{opacity:.8} 100%{top:100%;opacity:0} }
+  .cam-wrap::before {
+    content:''; position:absolute; inset:0; z-index:9; pointer-events:none;
+    background: linear-gradient(to bottom, rgba(0,200,240,0.03) 0%, transparent 25%, transparent 75%, rgba(0,200,240,0.03) 100%);
+  }
+  #cam-img { width:100%; height:100%; display:block; object-fit:cover; }
+  .cam-placeholder { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .cam-placeholder svg { opacity:.12; }
+  .cam-placeholder p { font-family:var(--font-mono); font-size:11px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
+
+  /* Corner brackets */
+  .corner { position:absolute; z-index:11; pointer-events:none; width:22px; height:22px; }
+  .corner.tl { top:8px; left:8px;   border-top:1.5px solid var(--accent); border-left:1.5px solid var(--accent); }
+  .corner.tr { top:8px; right:8px;  border-top:1.5px solid var(--accent); border-right:1.5px solid var(--accent); }
+  .corner.bl { bottom:8px; left:8px;  border-bottom:1.5px solid var(--accent); border-left:1.5px solid var(--accent); }
+  .corner.br { bottom:8px; right:8px; border-bottom:1.5px solid var(--accent); border-right:1.5px solid var(--accent); }
+
+  /* HUD overlays on camera */
+  .hud { position:absolute; z-index:12; pointer-events:none; font-family:var(--font-mono); font-size:10px; color:var(--accent); background:rgba(2,8,15,0.72); padding:3px 8px; border-radius:2px; letter-spacing:1px; }
+  .hud.tl { top:14px; left:34px; }
+  .hud.tr { top:14px; right:34px; }
+  .hud.bl { bottom:14px; left:34px; }
+  .hud.br { bottom:14px; right:34px; }
+
+  /* Alert banner */
+  .alert-banner {
+    width:100%; max-width:640px; padding:9px 16px; border-radius:4px;
+    border:1px solid; display:flex; align-items:center; gap:10px;
+    font-family:var(--font-hud); font-size:13px; font-weight:600; letter-spacing:0.8px;
+    opacity:0; transition:opacity 0.3s, transform 0.3s; transform:translateY(4px);
+  }
   .alert-banner.show { opacity:1; transform:translateY(0); }
-  .alert-banner.danger { border-color:var(--danger); background:rgba(255,59,48,0.1); color:var(--danger); }
-  .alert-banner.warn   { border-color:var(--warn);   background:rgba(255,179,0,0.08); color:var(--warn); }
-  .alert-banner.safe   { border-color:var(--safe);   background:rgba(0,255,157,0.06); color:var(--safe); }
-  .alert-icon { font-size:18px; }
-  .cam-controls { display:flex; gap:10px; align-items:center; padding:0 24px 20px; }
-  .btn { font-family:var(--font-hud); font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; padding:9px 20px; border:1px solid; border-radius:4px; cursor:pointer; transition:all 0.2s; background:transparent; }
+  .alert-banner.danger { border-color:var(--danger); background:rgba(255,53,53,0.09); color:var(--danger); }
+  .alert-banner.warn   { border-color:var(--warn);   background:rgba(255,179,0,0.07); color:var(--warn); }
+  .alert-banner.safe   { border-color:var(--safe);   background:rgba(0,245,160,0.05); color:var(--safe); }
+  .alert-icon { font-size:17px; }
+
+  /* Controls */
+  .controls { display:flex; gap:8px; align-items:center; padding:0 20px 16px; }
+  .btn { font-family:var(--font-hud); font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; padding:8px 18px; border:1px solid; border-radius:4px; cursor:pointer; transition:all 0.2s; background:transparent; }
   .btn-primary { border-color:var(--accent); color:var(--accent); }
-  .btn-primary:hover { background:rgba(0,212,255,0.1); box-shadow:0 0 16px rgba(0,212,255,0.2); }
-  .btn-primary.active { background:rgba(0,212,255,0.15); box-shadow:0 0 20px rgba(0,212,255,0.3); }
-  .btn-danger { border-color:var(--danger); color:var(--danger); }
-  .btn-danger:hover { background:rgba(255,59,48,0.1); }
-  .sensitivity-control { display:flex; align-items:center; gap:10px; margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
-  input[type=range] { -webkit-appearance:none; width:80px; height:3px; background:var(--border); border-radius:2px; outline:none; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); cursor:pointer; }
-  .temporal-panel { border-top:1px solid var(--border); padding:14px 24px; border-right:1px solid var(--border); background:var(--surface); }
-  .chart-container { position:relative; height:80px; width:100%; margin-top:10px; }
-  #temporal-canvas { width:100%; height:100%; }
-  .right-panel { grid-row:1/4; border-right:none; }
-  .risk-gauge-wrap { padding:20px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; align-items:center; }
-  .risk-label { font-family:var(--font-mono); font-size:10px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; align-self:flex-start; display:flex; align-items:center; gap:8px; }
-  .risk-label::before { content:''; display:block; width:3px; height:12px; background:var(--accent); border-radius:2px; box-shadow:0 0 6px var(--accent); }
-  .gauge-svg { width:180px; }
-  .risk-score-text { font-family:var(--font-hud); font-size:36px; font-weight:700; color:var(--text-bright); text-align:center; margin-top:-8px; transition:color 0.5s; }
-  .risk-level-label { font-family:var(--font-hud); font-size:13px; font-weight:600; letter-spacing:3px; text-transform:uppercase; text-align:center; margin-top:2px; transition:color 0.5s; }
-  .event-log { flex:1; overflow-y:auto; max-height:380px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
-  .event-log::-webkit-scrollbar { width:4px; }
-  .event-log::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-  .event-item { display:flex; gap:10px; padding:10px 18px; border-bottom:1px solid rgba(255,255,255,0.03); animation:slide-in 0.3s ease-out; transition:background 0.2s; }
-  .event-item:hover { background:rgba(0,212,255,0.03); }
-  @keyframes slide-in { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
-  .event-dot { width:6px; height:6px; border-radius:50%; margin-top:5px; flex-shrink:0; }
-  .event-content { flex:1; }
-  .event-name { font-family:var(--font-hud); font-size:12px; font-weight:600; color:var(--text); }
-  .event-meta { font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-top:2px; }
-  .ev-danger .event-dot { background:var(--danger); box-shadow:0 0 6px var(--danger); }
-  .ev-warn   .event-dot { background:var(--warn);   box-shadow:0 0 6px var(--warn); }
-  .ev-info   .event-dot { background:var(--accent);  box-shadow:0 0 6px var(--accent); }
-  .ev-safe   .event-dot { background:var(--safe);   box-shadow:0 0 6px var(--safe); }
-  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border-top:1px solid var(--border); }
-  .stat-cell { padding:14px 16px; background:var(--surface); }
-  .stat-val { font-family:var(--font-hud); font-size:24px; font-weight:700; color:var(--text-bright); }
-  .stat-label { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); letter-spacing:1.5px; text-transform:uppercase; margin-top:2px; }
-  /* Alert modal */
-  .alert-overlay { position:fixed; inset:0; z-index:999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); opacity:0; pointer-events:none; transition:opacity 0.3s; }
-  .alert-overlay.show { opacity:1; pointer-events:all; }
-  .alert-modal { border:2px solid; border-radius:8px; padding:32px 40px; text-align:center; max-width:400px; width:90%; backdrop-filter:blur(20px); transform:scale(0.9); transition:transform 0.3s; animation:modal-pulse 1s ease-in-out infinite; }
-  .alert-overlay.show .alert-modal { transform:scale(1); }
-  @keyframes modal-pulse { 0%,100%{box-shadow:0 0 30px currentColor;} 50%{box-shadow:0 0 60px currentColor;} }
-  .alert-modal.danger { border-color:var(--danger); background:rgba(20,5,5,0.95); color:var(--danger); }
-  .alert-modal.warn   { border-color:var(--warn);   background:rgba(20,14,5,0.95);  color:var(--warn); }
-  .modal-icon  { font-size:48px; margin-bottom:16px; }
-  .modal-title { font-family:var(--font-hud); font-size:22px; font-weight:700; letter-spacing:3px; }
-  .modal-sub   { font-family:var(--font-body); font-size:13px; margin-top:8px; opacity:0.8; }
-  .modal-close { margin-top:24px; font-family:var(--font-hud); font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:8px 24px; border:1px solid currentColor; background:transparent; color:inherit; cursor:pointer; border-radius:4px; transition:all 0.2s; }
-  .modal-close:hover { background:rgba(255,255,255,0.1); }
-  /* ws status bar */
-  .ws-bar { display:flex; align-items:center; gap:8px; padding:6px 16px; background:rgba(0,0,0,0.3); border-top:1px solid var(--border); font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
-  .ws-dot { width:6px; height:6px; border-radius:50%; background:var(--text-dim); transition:all 0.3s; }
+  .btn-primary:hover { background:rgba(0,200,240,0.1); box-shadow:0 0 14px rgba(0,200,240,0.2); }
+  .btn-primary.active { background:rgba(0,200,240,0.12); box-shadow:0 0 20px rgba(0,200,240,0.3); }
+  .btn-danger  { border-color:var(--danger); color:var(--danger); }
+  .btn-danger:hover  { background:rgba(255,53,53,0.1); }
+  .sens-ctrl { display:flex; align-items:center; gap:8px; margin-left:auto; font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+  input[type=range] { -webkit-appearance:none; width:75px; height:3px; background:var(--border); border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:var(--accent); box-shadow:0 0 5px var(--accent); cursor:pointer; }
+
+  /* Temporal chart */
+  .chart-section { border-top:1px solid var(--border); padding:12px 20px 14px; }
+  .chart-legend { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .chart-leg-items { display:flex; gap:14px; font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+  .leg-dot { display:inline-block; width:18px; height:2px; border-radius:1px; margin-right:4px; vertical-align:middle; }
+  #tchart { width:100%; height:72px; display:block; }
+
+  /* WS status */
+  .ws-bar { display:flex; align-items:center; gap:8px; padding:5px 14px; background:rgba(0,0,0,0.25); border-top:1px solid var(--border); font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+  .ws-dot { width:5px; height:5px; border-radius:50%; background:var(--text-dim); transition:all 0.3s; }
   .ws-dot.ok  { background:var(--accent2); box-shadow:0 0 6px var(--accent2); }
   .ws-dot.err { background:var(--danger);  box-shadow:0 0 6px var(--danger); animation:blink 0.8s infinite; }
-  @media (max-width:1100px) { .app{grid-template-columns:260px 1fr 240px;} }
-  @media (max-width:900px)  { .app{grid-template-columns:1fr;grid-template-rows:auto;} .left-panel,.right-panel{grid-row:auto;} .center-panel{grid-row:auto;} }
+
+  /* ── RIGHT COLUMN ─────────────────────────────────────── */
+  /* Risk gauge */
+  .risk-wrap { padding:18px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; align-items:center; }
+  .risk-label { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; align-self:flex-start; display:flex; align-items:center; gap:6px; }
+  .risk-label::before { content:''; display:block; width:2px; height:11px; background:var(--accent); border-radius:1px; box-shadow:0 0 5px var(--accent); }
+  .gauge-svg { width:170px; }
+  .risk-score { font-family:var(--font-hud); font-size:34px; font-weight:700; color:var(--text-bright); text-align:center; margin-top:-6px; transition:color 0.5s; }
+  .risk-lvl   { font-family:var(--font-hud); font-size:12px; font-weight:600; letter-spacing:2.5px; text-transform:uppercase; text-align:center; margin-top:2px; transition:color 0.5s; }
+
+  /* Risk breakdown */
+  .risk-breakdown { width:100%; margin-top:12px; display:flex; flex-direction:column; gap:4px; }
+  .rb-row { display:flex; align-items:center; gap:7px; }
+  .rb-name { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); width:60px; flex-shrink:0; text-transform:uppercase; letter-spacing:0.5px; }
+  .rb-bar-wrap { flex:1; height:3px; background:rgba(255,255,255,0.04); border-radius:2px; }
+  .rb-bar-fill { height:100%; border-radius:2px; background:var(--accent); transition:width 0.3s; }
+  .rb-val { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); width:24px; text-align:right; }
+
+  /* Event log */
+  .event-log { overflow-y:auto; max-height:290px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+  .event-log::-webkit-scrollbar { width:3px; }
+  .event-log::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .ev { display:flex; gap:9px; padding:9px 16px; border-bottom:1px solid rgba(255,255,255,0.025); animation:slide-in 0.25s ease-out; }
+  @keyframes slide-in { from{opacity:0;transform:translateX(6px)} to{opacity:1;transform:translateX(0)} }
+  .ev:hover { background:rgba(0,200,240,0.025); }
+  .ev-dot { width:5px; height:5px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .ev-content { flex:1; }
+  .ev-name { font-family:var(--font-hud); font-size:12px; font-weight:600; color:var(--text); }
+  .ev-meta { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); margin-top:1px; }
+  .ev-danger .ev-dot { background:var(--danger); box-shadow:0 0 5px var(--danger); }
+  .ev-warn   .ev-dot { background:var(--warn);   box-shadow:0 0 5px var(--warn); }
+  .ev-info   .ev-dot { background:var(--accent);  box-shadow:0 0 5px var(--accent); }
+  .ev-safe   .ev-dot { background:var(--safe);   box-shadow:0 0 5px var(--safe); }
+
+  /* Stats */
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border-top:1px solid var(--border); margin-top:auto; }
+  .stat-cell { padding:12px 14px; background:var(--surface); }
+  .stat-val { font-family:var(--font-hud); font-size:22px; font-weight:700; color:var(--text-bright); }
+  .stat-lbl { font-family:var(--font-mono); font-size:8px; color:var(--text-dim); letter-spacing:1.2px; text-transform:uppercase; margin-top:2px; }
+
+  /* Alert modal */
+  .modal-overlay { position:fixed; inset:0; z-index:999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); opacity:0; pointer-events:none; transition:opacity 0.3s; }
+  .modal-overlay.show { opacity:1; pointer-events:all; }
+  .modal {
+    border:2px solid; border-radius:8px; padding:28px 36px; text-align:center;
+    max-width:380px; width:90%; backdrop-filter:blur(24px);
+    transform:scale(0.9); transition:transform 0.3s;
+    animation:mpulse 1s ease-in-out infinite;
+  }
+  .modal-overlay.show .modal { transform:scale(1); }
+  @keyframes mpulse { 0%,100%{box-shadow:0 0 28px currentColor} 50%{box-shadow:0 0 56px currentColor} }
+  .modal.danger { border-color:var(--danger); background:rgba(18,4,4,0.96); color:var(--danger); }
+  .modal.warn   { border-color:var(--warn);   background:rgba(18,12,4,0.96); color:var(--warn); }
+  .modal-icon  { font-size:44px; margin-bottom:12px; }
+  .modal-title { font-family:var(--font-hud); font-size:20px; font-weight:700; letter-spacing:3px; }
+  .modal-sub   { font-size:12px; margin-top:6px; opacity:0.8; font-family:var(--font-body); }
+  .modal-close {
+    margin-top:20px; font-family:var(--font-hud); font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; padding:7px 22px; border:1px solid currentColor;
+    background:transparent; color:inherit; cursor:pointer; border-radius:4px; transition:all 0.2s;
+  }
+  .modal-close:hover { background:rgba(255,255,255,0.1); }
+
+  @media (max-width:1024px) { .app{grid-template-columns:260px 1fr 240px;} }
 </style>
 </head>
 <body>
 
 <!-- ALERT MODAL -->
-<div class="alert-overlay" id="alert-overlay">
-  <div class="alert-modal danger" id="alert-modal">
-    <div class="modal-icon" id="modal-icon">⚠️</div>
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal danger" id="modal">
+    <div class="modal-icon"  id="modal-icon">⚠️</div>
     <div class="modal-title" id="modal-title">DROWSINESS DETECTED</div>
-    <div class="modal-sub"  id="modal-sub">Eyes closed for extended period. Please take a break.</div>
-    <button class="modal-close" onclick="dismissAlert()">ACKNOWLEDGE</button>
+    <div class="modal-sub"   id="modal-sub">Eyes closed too long. Please take a break.</div>
+    <button class="modal-close" onclick="dismissModal()">ACKNOWLEDGE</button>
   </div>
 </div>
 
@@ -242,151 +317,179 @@
     </div>
   </div>
   <div class="header-right">
-    <div class="status-pill" id="sys-status">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">STANDBY</span>
+    <div class="arch-badge">EAR+MAR · LSTM · YOLOv8 · Fusion</div>
+    <div class="status-pill" id="sys-pill">
+      <div class="status-dot" id="sys-dot"></div>
+      <span id="sys-txt">STANDBY</span>
     </div>
-    <div class="time-display" id="clock">--:--:--</div>
+    <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
 
 <div class="app">
 
-  <!-- LEFT: DETECTION METRICS -->
-  <div class="panel left-panel">
-    <div class="panel-header">
-      <span class="panel-title">Detection Metrics</span>
-      <span class="panel-badge" id="fps-badge">0 FPS</span>
+  <!-- ═══════════════ LEFT — DETECTION METRICS ══════════════ -->
+  <div class="col">
+    <div class="ph">
+      <span class="ph-title">Detection Metrics</span>
+      <span class="ph-badge" id="fps-badge">0 FPS</span>
     </div>
 
-    <!-- EYE BLINK (PRIMARY — blendshape) -->
+    <!-- EAR — Eye Aspect Ratio (primary drowsiness metric) -->
     <div class="metric-block">
-      <div class="metric-label">Eye Blink Score (MediaPipe Blendshape)</div>
+      <div class="ml">
+        Eye Aspect Ratio (EAR)
+        <span class="ml-ref">Soukupová &amp; Čech, 2016</span>
+      </div>
       <div class="big-display">
-        <span class="big-val" id="blink-val">0.00</span>
-        <span class="big-unit">blink</span>
+        <span class="big-val" id="ear-val">0.31</span>
+        <span class="big-unit">EAR</span>
       </div>
-      <div class="thresh-bar">
-        <div class="thresh-fill" id="blink-bar" style="width:0%;background:var(--safe)"></div>
-        <div class="thresh-mark" id="blink-thresh-mark" style="left:40%"></div>
+      <div class="bar-wrap">
+        <div class="bar-fill" id="ear-bar" style="width:62%;background:var(--safe)"></div>
+        <div class="bar-mark" id="ear-thresh-mark" style="left:42%"></div>
       </div>
-      <div class="thresh-labels"><span>OPEN (0.0)</span><span id="blink-thresh-lbl">THRESH (0.40)</span><span>CLOSED (1.0)</span></div>
+      <div class="bar-labels">
+        <span>CLOSED (0.0)</span>
+        <span id="ear-thresh-lbl">THRESH (0.21)</span>
+        <span>OPEN (0.5)</span>
+      </div>
       <div class="sub-row">
-        <div class="sub-cell">
-          <div class="sub-label">LEFT</div>
-          <div class="sub-val" id="blink-l-val">0.00</div>
-        </div>
-        <div class="sub-cell">
-          <div class="sub-label">RIGHT</div>
-          <div class="sub-val" id="blink-r-val">0.00</div>
-        </div>
-        <div class="sub-cell">
-          <div class="sub-label">EAR</div>
-          <div class="sub-val" id="ear-val">0.31</div>
-        </div>
+        <div class="sub-cell"><div class="sub-lbl">LEFT</div><div class="sub-val" id="ear-l">0.31</div></div>
+        <div class="sub-cell"><div class="sub-lbl">RIGHT</div><div class="sub-val" id="ear-r">0.31</div></div>
+        <div class="sub-cell"><div class="sub-lbl">DROWSY F</div><div class="sub-val" id="drowsy-f">0</div></div>
       </div>
-      <!-- Eye diagram (openness driven by blink score) -->
-      <div class="eye-diagram">
+      <!-- Eye diagrams -->
+      <div class="eye-row">
         <div>
-          <svg class="eye-svg" viewBox="0 0 70 35" id="left-eye-svg">
-            <ellipse cx="35" cy="17" rx="28" ry="14" fill="none" stroke="#1a3a52" stroke-width="1.5"/>
-            <ellipse cx="35" cy="17" rx="10" ry="10" fill="#1a3a52" id="left-pupil"/>
-            <ellipse cx="35" cy="17" rx="10" ry="10" fill="none" stroke="#00d4ff" stroke-width="1.5" id="left-iris" opacity="0.6"/>
+          <svg class="eye-svg" viewBox="0 0 66 32">
+            <ellipse cx="33" cy="16" rx="26" ry="12" fill="none" stroke="#152840" stroke-width="1.5"/>
+            <ellipse cx="33" cy="16" rx="9" ry="9" fill="#152840" id="lp"/>
+            <ellipse cx="33" cy="16" rx="9" ry="9" fill="none" stroke="#00c8f0" stroke-width="1.5" id="li" opacity=".6"/>
           </svg>
-          <div class="eye-label">LEFT</div>
+          <div class="eye-lbl">LEFT</div>
         </div>
         <div>
-          <svg class="eye-svg" viewBox="0 0 70 35" id="right-eye-svg">
-            <ellipse cx="35" cy="17" rx="28" ry="14" fill="none" stroke="#1a3a52" stroke-width="1.5"/>
-            <ellipse cx="35" cy="17" rx="10" ry="10" fill="#1a3a52" id="right-pupil"/>
-            <ellipse cx="35" cy="17" rx="10" ry="10" fill="none" stroke="#00d4ff" stroke-width="1.5" id="right-iris" opacity="0.6"/>
+          <svg class="eye-svg" viewBox="0 0 66 32">
+            <ellipse cx="33" cy="16" rx="26" ry="12" fill="none" stroke="#152840" stroke-width="1.5"/>
+            <ellipse cx="33" cy="16" rx="9" ry="9" fill="#152840" id="rp"/>
+            <ellipse cx="33" cy="16" rx="9" ry="9" fill="none" stroke="#00c8f0" stroke-width="1.5" id="ri" opacity=".6"/>
           </svg>
-          <div class="eye-label">RIGHT</div>
+          <div class="eye-lbl">RIGHT</div>
         </div>
       </div>
     </div>
 
-    <!-- JAW OPEN (PRIMARY — blendshape) -->
+    <!-- MAR — Mouth Aspect Ratio (yawning) -->
     <div class="metric-block">
-      <div class="metric-label">Jaw Open Score (MediaPipe Blendshape)</div>
+      <div class="ml">
+        Mouth Aspect Ratio (MAR)
+        <span class="ml-ref">Abtahi et al., 2014</span>
+      </div>
       <div class="big-display">
-        <span class="big-val" id="jaw-val">0.00</span>
-        <span class="big-unit">yawn idx</span>
+        <span class="big-val" id="mar-val">0.00</span>
+        <span class="big-unit">MAR</span>
       </div>
-      <div class="thresh-bar">
-        <div class="thresh-fill" id="jaw-bar" style="width:0%;background:var(--safe)"></div>
-        <div class="thresh-mark" style="left:55%"></div>
+      <div class="bar-wrap">
+        <div class="bar-fill" id="mar-bar" style="width:0%;background:var(--safe)"></div>
+        <div class="bar-mark" style="left:65%"></div>
       </div>
-      <div class="thresh-labels"><span>CLOSED (0.0)</span><span>THRESH (0.55)</span><span>YAWN (1.0)</span></div>
+      <div class="bar-labels"><span>CLOSED (0.0)</span><span>THRESH (0.65)</span><span>YAWN (1.0)</span></div>
       <div class="sub-row">
-        <div class="sub-cell">
-          <div class="sub-label">MAR</div>
-          <div class="sub-val" id="mar-val">0.00</div>
+        <div class="sub-cell"><div class="sub-lbl">YAWN TIME</div><div class="sub-val" id="yawn-ms">0s</div></div>
+        <div class="sub-cell"><div class="sub-lbl">NEEDED</div><div class="sub-val" style="color:var(--text-dim)">2.0s</div></div>
+      </div>
+    </div>
+
+    <!-- Head Pose -->
+    <div class="metric-block">
+      <div class="ml">Head Pose (HOPENet-style <span class="ml-ref" style="font-style:normal">Ruiz et al., 2018</span>)</div>
+      <div class="state-list">
+        <div class="si" id="hp-pitch"><div class="si-left"><div class="si-dot"></div><span class="si-name">PITCH</span></div><span class="si-val" id="hp-pitch-v">+0°</span></div>
+        <div class="si" id="hp-yaw">  <div class="si-left"><div class="si-dot"></div><span class="si-name">YAW</span></div>  <span class="si-val" id="hp-yaw-v">+0°</span></div>
+        <div class="si" id="hp-roll"> <div class="si-left"><div class="si-dot"></div><span class="si-name">ROLL</span></div> <span class="si-val" id="hp-roll-v">+0°</span></div>
+      </div>
+    </div>
+
+    <!-- LSTM Temporal Scores -->
+    <div class="metric-block">
+      <div class="ml">LSTM Temporal Scores <span class="ml-ref">Ghoddoosian et al., 2019</span></div>
+      <div class="temporal-scores">
+        <div class="ts-cell">
+          <div class="ts-lbl">EYE</div>
+          <div class="ts-val" id="ts-eye">0.00</div>
+          <div class="ts-bar"><div class="ts-bar-fill" id="ts-eye-bar" style="width:0%"></div></div>
+        </div>
+        <div class="ts-cell">
+          <div class="ts-lbl">MOUTH</div>
+          <div class="ts-val" id="ts-mouth">0.00</div>
+          <div class="ts-bar"><div class="ts-bar-fill" id="ts-mouth-bar" style="width:0%"></div></div>
+        </div>
+        <div class="ts-cell">
+          <div class="ts-lbl">HEAD</div>
+          <div class="ts-val" id="ts-head">0.00</div>
+          <div class="ts-bar"><div class="ts-bar-fill" id="ts-head-bar" style="width:0%"></div></div>
         </div>
       </div>
-    </div>
-
-    <!-- Head pose -->
-    <div class="metric-block">
-      <div class="metric-label">Head Pose (Transform Matrix)</div>
-      <div class="state-row">
-        <div class="state-item" id="hp-pitch"><span class="state-dot"></span><span class="state-name">PITCH</span><span class="state-val" id="hp-pitch-val">+0°</span></div>
-        <div class="state-item" id="hp-yaw">  <span class="state-dot"></span><span class="state-name">YAW</span>  <span class="state-val" id="hp-yaw-val">+0°</span></div>
-        <div class="state-item" id="hp-roll"> <span class="state-dot"></span><span class="state-name">ROLL</span> <span class="state-val" id="hp-roll-val">+0°</span></div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:8px;">
+        α=0.85 · 30-frame window · hidden state h_t
       </div>
     </div>
 
-    <!-- Detection states -->
+    <!-- PERCLOS -->
     <div class="metric-block">
-      <div class="metric-label">Detection States</div>
-      <div class="state-row">
-        <div class="state-item" id="st-drowsy">  <span class="state-dot"></span><span class="state-name">DROWSINESS</span><span class="state-val" id="st-drowsy-val">—</span></div>
-        <div class="state-item" id="st-yawn">    <span class="state-dot"></span><span class="state-name">YAWNING</span>   <span class="state-val" id="st-yawn-val">—</span></div>
-        <div class="state-item" id="st-phone">   <span class="state-dot"></span><span class="state-name">PHONE USE</span> <span class="state-val" id="st-phone-val">—</span></div>
-        <div class="state-item" id="st-distract"><span class="state-dot"></span><span class="state-name">DISTRACTION</span><span class="state-val" id="st-distract-val">—</span></div>
-      </div>
-    </div>
-
-    <!-- PERCLOS — industry standard 3-min window, P80 (eyes >80% closed) -->
-    <div class="metric-block">
-      <div class="metric-label">PERCLOS — P80 (180-frame window)</div>
+      <div class="ml">PERCLOS — P80 <span class="ml-ref">NHTSA Standard</span></div>
       <div class="big-display">
         <span class="big-val" id="perclos-val">0</span>
         <span class="big-unit">%</span>
       </div>
-      <div class="thresh-bar">
-        <div class="thresh-fill" id="perclos-bar" style="width:0%;background:var(--safe)"></div>
-        <div class="thresh-mark" style="left:15%"></div>
+      <div class="bar-wrap">
+        <div class="bar-fill" id="perclos-bar" style="width:0%;background:var(--safe)"></div>
+        <div class="bar-mark" style="left:15%"></div>
       </div>
-      <!-- Research: PERCLOS ≥15% = severe, alert threshold commonly set at 15% (NHTSA/P80) -->
-      <div class="thresh-labels"><span>0%</span><span>ALERT (15%)</span><span>100%</span></div>
+      <div class="bar-labels"><span>0%</span><span>ALERT (15%)</span><span>100%</span></div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:6px;">
+        EAR &lt; 0.20 → eye &gt;80% closed · 180-frame window (~6s)
+      </div>
+    </div>
+
+    <!-- Detection States -->
+    <div class="metric-block">
+      <div class="ml">Detection States</div>
+      <div class="state-list">
+        <div class="si" id="st-drowsy">  <div class="si-left"><div class="si-dot"></div><span class="si-name">DROWSINESS</span></div><span class="si-val" id="st-drowsy-v">—</span></div>
+        <div class="si" id="st-yawn">    <div class="si-left"><div class="si-dot"></div><span class="si-name">YAWNING</span></div>   <span class="si-val" id="st-yawn-v">—</span></div>
+        <div class="si" id="st-phone">   <div class="si-left"><div class="si-dot"></div><span class="si-name">PHONE USE</span></div> <span class="si-val" id="st-phone-v">—</span></div>
+        <div class="si" id="st-dist">    <div class="si-left"><div class="si-dot"></div><span class="si-name">DISTRACTION</span></div><span class="si-val" id="st-dist-v">—</span></div>
+      </div>
     </div>
   </div>
 
-  <!-- CENTER: CAMERA FEED (from backend via WebSocket) -->
-  <div class="center-panel">
-    <div class="panel-header">
-      <span class="panel-title">Live Monitor Feed</span>
-      <span class="panel-badge" id="res-badge">—</span>
+  <!-- ═══════════════ CENTER — CAMERA + CHART ══════════════ -->
+  <div class="col center-col">
+    <div class="ph">
+      <span class="ph-title">Live Monitor Feed</span>
+      <span class="ph-badge" id="res-badge">—</span>
     </div>
+
     <div class="cam-area">
-      <div class="camera-container" id="cam-container">
-        <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
-        <div class="cam-corner bl"></div><div class="cam-corner br"></div>
-        <span class="cam-hud tl" id="hud-mode">BACKEND: OFFLINE</span>
-        <span class="cam-hud tr" id="hud-fps" style="color:var(--accent2)">-- fps</span>
-        <span class="cam-hud bl" id="hud-faces">FACES: 0</span>
-        <span class="cam-hud br" id="hud-conf">CONF: --</span>
-        <img id="cam-img" style="display:none;width:100%;height:100%;object-fit:cover;filter:contrast(1.05) brightness(1.05);" alt="cam">
-        <div class="cam-placeholder" id="cam-placeholder">
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-            <rect x="5" y="20" width="70" height="50" rx="6" stroke="#00d4ff" stroke-width="2"/>
-            <circle cx="40" cy="45" r="14" stroke="#00d4ff" stroke-width="2"/>
-            <circle cx="40" cy="45" r="6" fill="#00d4ff" opacity="0.4"/>
-            <rect x="28" y="14" width="24" height="10" rx="3" stroke="#00d4ff" stroke-width="2"/>
+      <div class="cam-wrap" id="cam-wrap">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <span class="hud tl" id="hud-mode">BACKEND: OFFLINE</span>
+        <span class="hud tr" id="hud-fps"  style="color:var(--accent2)">-- fps</span>
+        <span class="hud bl" id="hud-face">FACES: 0</span>
+        <span class="hud br" id="hud-ear">EAR: --</span>
+        <img id="cam-img" style="display:none;width:100%;height:100%;object-fit:cover;" alt="cam">
+        <div class="cam-placeholder" id="cam-ph">
+          <svg width="72" height="72" viewBox="0 0 80 80" fill="none">
+            <rect x="5" y="20" width="70" height="50" rx="6" stroke="#00c8f0" stroke-width="1.5"/>
+            <circle cx="40" cy="45" r="13" stroke="#00c8f0" stroke-width="1.5"/>
+            <circle cx="40" cy="45" r="5" fill="#00c8f0" opacity=".4"/>
+            <rect x="29" y="14" width="22" height="10" rx="3" stroke="#00c8f0" stroke-width="1.5"/>
           </svg>
-          <p>Click ⚡ CONNECT below</p>
-          <p style="font-size:10px;margin-top:-8px">Connects to Python backend at :5001</p>
+          <p>Click ⚡ CONNECT</p>
+          <p style="font-size:9px;margin-top:-6px">Python backend at :5001</p>
         </div>
       </div>
       <div class="alert-banner" id="alert-banner">
@@ -394,242 +497,198 @@
         <span id="alert-text">System ready</span>
       </div>
     </div>
-    <div class="cam-controls">
-      <button class="btn btn-primary" id="btn-connect" onclick="toggleConnect()">⚡ CONNECT</button>
-      <button class="btn btn-danger"  id="btn-reset"   onclick="resetSession()" style="display:none">↺ RESET</button>
-      <div class="sensitivity-control">
-        <span>BLINK SENS</span>
-        <input type="range" id="blink-sens" min="25" max="60" value="40" oninput="updateBlinkThresh(this.value)">
-        <span id="blink-sens-disp" style="color:var(--accent)">0.40</span>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-conn" onclick="toggleConnect()">⚡ CONNECT</button>
+      <button class="btn btn-danger"  id="btn-rst"  onclick="resetSession()" style="display:none">↺ RESET</button>
+      <div class="sens-ctrl">
+        <span>EAR THRESH</span>
+        <input type="range" id="ear-sens" min="15" max="30" value="21" oninput="updateEarThresh(this.value)">
+        <span id="ear-sens-disp" style="color:var(--accent)">0.21</span>
       </div>
     </div>
+
+    <div class="chart-section">
+      <div class="chart-legend">
+        <span class="ph-title">LSTM Eye · Risk · PERCLOS (last 6s)</span>
+        <div class="chart-leg-items">
+          <span><span class="leg-dot" style="background:var(--accent)"></span>EAR</span>
+          <span><span class="leg-dot" style="background:var(--danger)"></span>RISK</span>
+          <span><span class="leg-dot" style="background:var(--warn)"></span>PERCLOS</span>
+        </div>
+      </div>
+      <canvas id="tchart"></canvas>
+    </div>
+
     <div class="ws-bar">
       <div class="ws-dot" id="ws-dot"></div>
-      <span id="ws-status-text">WebSocket: disconnected — run python3 app.py then click CONNECT</span>
+      <span id="ws-txt">WebSocket: disconnected — run python3 app.py then click CONNECT</span>
     </div>
   </div>
 
-  <!-- CENTER BOTTOM: TEMPORAL GRAPH -->
-  <div class="temporal-panel">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <span class="panel-title">Blink Score / Risk Timeline (last ~6s)</span>
-      <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">
-        <span style="color:var(--accent)">━</span> BLINK &nbsp;
-        <span style="color:var(--danger)">━</span> RISK
-      </span>
-    </div>
-    <div class="chart-container"><canvas id="temporal-canvas"></canvas></div>
-  </div>
+  <!-- ═══════════════ RIGHT — RISK + EVENT LOG ══════════════ -->
+  <div class="col">
+    <div class="ph"><span class="ph-title">Risk Score</span></div>
 
-  <!-- RIGHT: RISK GAUGE + EVENT LOG -->
-  <div class="panel right-panel">
-    <div class="panel-header"><span class="panel-title">Risk Score</span></div>
-    <div class="risk-gauge-wrap">
-      <div class="risk-label">Composite Risk Index</div>
-      <svg class="gauge-svg" viewBox="0 0 180 110">
-        <path d="M20 100 A80 80 0 0 1 160 100" fill="none" stroke="#1a3a52" stroke-width="12" stroke-linecap="round"/>
-        <path d="M20 100 A80 80 0 0 1 160 100" fill="none" stroke="#1a3a52" stroke-width="12"
-          stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"
+    <div class="risk-wrap">
+      <div class="risk-label">Decision Fusion Module</div>
+      <svg class="gauge-svg" viewBox="0 0 170 105">
+        <path d="M18 96 A76 76 0 0 1 152 96" fill="none" stroke="#152840" stroke-width="11" stroke-linecap="round"/>
+        <path d="M18 96 A76 76 0 0 1 152 96" fill="none" stroke="#152840" stroke-width="11"
+          stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="239"
           id="gauge-arc" style="transition:stroke-dashoffset 0.5s,stroke 0.5s"/>
-        <line id="gauge-needle" x1="90" y1="100" x2="90" y2="30"
+        <line id="gauge-needle" x1="85" y1="96" x2="85" y2="28"
           stroke="var(--accent)" stroke-width="2" stroke-linecap="round"
-          style="transition:transform 0.5s;transform-origin:90px 100px"/>
-        <circle cx="90" cy="100" r="5" fill="var(--accent)" opacity="0.8"/>
+          style="transition:transform 0.5s;transform-origin:85px 96px"/>
+        <circle cx="85" cy="96" r="4.5" fill="var(--accent)" opacity=".8"/>
       </svg>
-      <div class="risk-score-text" id="risk-score">0</div>
-      <div class="risk-level-label" id="risk-level" style="color:var(--safe)">SAFE</div>
-    </div>
-    <div class="panel-header">
-      <span class="panel-title">Event Log</span>
-      <span class="panel-badge" id="event-count">0 events</span>
-    </div>
-    <div class="event-log" id="event-log">
-      <div class="event-item ev-info">
-        <div class="event-dot"></div>
-        <div class="event-content">
-          <div class="event-name">System Initialized</div>
-          <div class="event-meta">D.I.S.H.A. v3.0 · Blendshape-based detection</div>
+      <div class="risk-score" id="risk-score">0</div>
+      <div class="risk-lvl" id="risk-lvl" style="color:var(--safe)">SAFE</div>
+
+      <!-- Risk breakdown bars (Decision Fusion components) -->
+      <div class="risk-breakdown">
+        <div class="rb-row">
+          <span class="rb-name">EYE/LSTM</span>
+          <div class="rb-bar-wrap"><div class="rb-bar-fill" id="rb-eye" style="width:0%"></div></div>
+          <span class="rb-val" id="rb-eye-v">0</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-name">PERCLOS</span>
+          <div class="rb-bar-wrap"><div class="rb-bar-fill" id="rb-pc" style="width:0%;background:var(--warn)"></div></div>
+          <span class="rb-val" id="rb-pc-v">0</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-name">YAWN</span>
+          <div class="rb-bar-wrap"><div class="rb-bar-fill" id="rb-yn" style="width:0%;background:var(--accent2)"></div></div>
+          <span class="rb-val" id="rb-yn-v">0</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-name">PHONE</span>
+          <div class="rb-bar-wrap"><div class="rb-bar-fill" id="rb-ph" style="width:0%;background:var(--danger)"></div></div>
+          <span class="rb-val" id="rb-ph-v">0</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-name">HEAD</span>
+          <div class="rb-bar-wrap"><div class="rb-bar-fill" id="rb-hd" style="width:0%;background:#a78bfa"></div></div>
+          <span class="rb-val" id="rb-hd-v">0</span>
         </div>
       </div>
     </div>
+
+    <div class="ph">
+      <span class="ph-title">Event Log</span>
+      <span class="ph-badge" id="ev-count">0 events</span>
+    </div>
+    <div class="event-log" id="ev-log">
+      <div class="ev ev-info">
+        <div class="ev-dot"></div>
+        <div class="ev-content">
+          <div class="ev-name">System Initialized</div>
+          <div class="ev-meta">D.I.S.H.A. v4.0 · EAR+MAR+LSTM+YOLOv8+Fusion</div>
+        </div>
+      </div>
+    </div>
+
     <div class="stats-grid">
-      <div class="stat-cell"><div class="stat-val" id="stat-alerts">0</div><div class="stat-label">Alerts Fired</div></div>
-      <div class="stat-cell"><div class="stat-val" id="stat-yawns">0</div><div class="stat-label">Yawns Detected</div></div>
-      <div class="stat-cell"><div class="stat-val" id="stat-frames">0</div><div class="stat-label">Frames Received</div></div>
-      <div class="stat-cell"><div class="stat-val" id="stat-dur">0s</div><div class="stat-label">Session Duration</div></div>
+      <div class="stat-cell"><div class="stat-val" id="s-alerts">0</div><div class="stat-lbl">Alerts Fired</div></div>
+      <div class="stat-cell"><div class="stat-val" id="s-yawns">0</div><div class="stat-lbl">Yawns Detected</div></div>
+      <div class="stat-cell"><div class="stat-val" id="s-frames">0</div><div class="stat-lbl">Frames</div></div>
+      <div class="stat-cell"><div class="stat-val" id="s-dur">0s</div><div class="stat-lbl">Session Duration</div></div>
     </div>
   </div>
 
-</div><!-- /.app -->
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-//  D.I.S.H.A. v3.0  —  Frontend Detection Engine
+//  D.I.S.H.A. v4.0  —  Frontend
 //
-//  Architecture: Python backend (app.py) runs MediaPipe FaceLandmarker
-//  with blendshapes enabled. It streams JSON + JPEG frames over WebSocket.
-//  This page ONLY receives and visualises — no camera access needed here.
+//  Backend (app.py) computes:
+//    1. EAR / MAR from MediaPipe landmarks (Soukupová & Čech 2016)
+//    2. LSTM temporal scores (30-frame window, α=0.85)
+//    3. PERCLOS P80 (NHTSA standard, EAR < 0.20, 180-frame window)
+//    4. YOLOv8n phone detection
+//    5. Decision Fusion Module (weighted, non-linear sigmoid activation)
 //
-//  Detection hierarchy:
-//    1. eyeBlinkLeft / eyeBlinkRight  → drowsiness (PRIMARY)
-//    2. jawOpen blendshape            → yawning    (PRIMARY, separate from drowsy)
-//    3. pitch / yaw from transform mx → distraction
-//    4. PERCLOS (P80, 180-frame)      → cumulative fatigue
-//    5. phone_conf from backend       → phone use (when YOLO is added)
-//
-//  KEY FIX — Yawn ≠ Drowsy separation:
-//    Drowsiness uses ONLY blink_avg (eye closure).
-//    Yawning uses ONLY jaw_open (mouth).
-//    They are completely independent state machines.
-//    A wide-open mouth during a yawn does NOT trigger eye-closed detection.
+//  Frontend ONLY visualises — all AI runs on backend.
 // ═══════════════════════════════════════════════════════════════════
 
-// ── Configuration (industry-standard thresholds) ──────────────────
-//
-// eyeBlinkLeft/Right: 0 = fully open, 1 = fully closed
-//   Typical open eye  ≈ 0.05–0.15
-//   Normal blink peak ≈ 0.85–1.0  (lasts ~150–250ms = ~5–8 frames at 30fps)
-//   Drowsy threshold  ≈ 0.40 (eyes heavy/partially closed)
-//
-// jawOpen: 0 = closed, 1 = wide open
-//   Normal speech     ≈ 0.10–0.35
-//   Yawn              ≈ 0.55+ sustained for 2+ seconds
-//
-// PERCLOS P80: percentage of frames where eye is >80% closed (blink_avg > 0.80)
-//   Industry standard (NHTSA): alert at ≥15% over observation window
-//
-let BLINK_THRESH = 0.40;       // eye partially/mostly closed → counts toward PERCLOS + drowsy
-const BLINK_PERCLOS = 0.80;    // P80 definition — eye >80% closed counts for PERCLOS
-const JAW_THRESH   = 0.55;     // jaw open → yawning (must sustain for YAWN_MS ms)
-const PITCH_THRESH = 20;       // degrees
-const YAW_THRESH   = 35;       // degrees
-const ROLL_THRESH  = 25;       // degrees
+// ── Thresholds (used for UI colouring only — detection is backend) ─
+let EAR_THRESH = 0.21;
+const MAR_THRESH   = 0.65;
+const PITCH_THRESH = 20;
+const YAW_THRESH   = 35;
+const PERCLOS_ALERT = 15;
+const ALERT_COOL = 8000;
 
-// Drowsiness: NHTSA / research standard — consecutive frames with eyes heavy
-// ~20 frames @ 30fps = ~0.67s (a blink is ~0.2s, drowsy closure ≥ 0.5s)
-const DROWSY_FRAMES  = 20;
+// ── State ──────────────────────────────────────────────────────────
+let ws = null, connected = false;
+let sessionStart = null, sFrames = 0, sAlerts = 0, sYawns = 0;
+let lastDrowsyAlert = 0, lastYawnAlert = 0, lastPhoneAlert = 0, lastDistAlert = 0;
+let prevDrowsy = false, prevYawn = false, prevPhone = false;
+let bannerTimer = null, evCount = 0;
+let fpsSmooth = 0, lastFrameTs = 0;
 
-// Yawn: must sustain jaw_open > JAW_THRESH for at least 2 seconds
-// Per research (Preprints 2025): "mouth open for at least 2 seconds to qualify"
-const YAWN_MS = 2000;
-
-// PERCLOS window: 180 frames @ 30fps = 6 seconds rolling window
-// (Full standard is 3 min, but 6s is practical for real-time demo)
-const PERCLOS_WINDOW = 180;
-const PERCLOS_ALERT  = 15;     // ≥15% = severe (NHTSA P80 standard)
-
-const ALERT_COOLDOWN_MS = 8000; // ms between repeat alerts of same type
-
-// ── State variables ────────────────────────────────────────────────
-let ws = null;
-let connected = false;
-let sessionStart = null;
-let sessionFrames = 0;
-let sessionAlerts = 0;
-let sessionYawns  = 0;
-
-// Drowsiness state machine
-let drowsyFrameCount = 0;   // consecutive frames where blink_avg > BLINK_THRESH
-let wasDrowsy = false;
-let lastDrowsyAlert = 0;
-
-// Yawn state machine (time-based, not frame-based)
-let yawnStartTime = null;   // when jaw_open first exceeded JAW_THRESH
-let isYawning = false;
-let wasYawning = false;
-let lastYawnAlert = 0;
-
-// PERCLOS P80 ring buffer
-let perclosWindow = [];     // 1 = eye >80% closed this frame, 0 = not
-
-// Phone detection
-let phoneDetected = false;
-let lastPhoneAlert = 0;
-
-// Distraction
-let distractDetected = false;
-let lastDistractAlert = 0;
-
-// Risk EMA
-let smoothRisk = 0;
-
-// History for temporal chart
-let blinkHistory = [];
-let riskHistory  = [];
-
-// FPS tracking
-let lastFrameTime = 0;
-let fpsSmooth = 0;
-
-// Banner timeout
-let bannerTimer = null;
-let eventCount = 0;
+// Chart histories
+let earHist = [], riskHist = [], perclosHist = [];
 
 // ── Clock ──────────────────────────────────────────────────────────
-function updateClock() {
-  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
-}
-setInterval(updateClock, 1000);
-updateClock();
+setInterval(() => { document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8); }, 1000);
 
-// ── Blink sensitivity slider ───────────────────────────────────────
-function updateBlinkThresh(v) {
-  BLINK_THRESH = v / 100;
-  const pct = BLINK_THRESH * 100;
-  document.getElementById('blink-sens-disp').textContent = BLINK_THRESH.toFixed(2);
-  document.getElementById('blink-thresh-lbl').textContent = `THRESH (${BLINK_THRESH.toFixed(2)})`;
-  document.getElementById('blink-thresh-mark').style.left = pct + '%';
+// ── EAR slider ────────────────────────────────────────────────────
+function updateEarThresh(v) {
+  EAR_THRESH = v / 100;
+  document.getElementById('ear-sens-disp').textContent = EAR_THRESH.toFixed(2);
+  document.getElementById('ear-thresh-lbl').textContent = `THRESH (${EAR_THRESH.toFixed(2)})`;
+  document.getElementById('ear-thresh-mark').style.left = (EAR_THRESH / 0.5 * 100) + '%';
 }
 
-// ── WebSocket connect/disconnect ───────────────────────────────────
+// ── WebSocket ──────────────────────────────────────────────────────
 function toggleConnect() {
-  if (connected) { disconnect(); } else { connect(); }
+  connected ? disconnect() : connect();
 }
 
 function connect() {
   if (ws) { ws.close(); ws = null; }
-  setWsStatus('connecting', 'Connecting to ws://localhost:5001/ws …');
+  setWs('connecting', 'Connecting…');
   ws = new WebSocket('ws://localhost:5001/ws');
-  ws.binaryType = 'blob';
 
   ws.onopen = () => {
     connected = true;
     sessionStart = Date.now();
-    setWsStatus('ok', 'Connected · MediaPipe blendshape stream active');
-    document.getElementById('btn-connect').textContent = '⏹ DISCONNECT';
-    document.getElementById('btn-connect').classList.add('active');
-    document.getElementById('btn-reset').style.display = 'inline-block';
-    const sp = document.getElementById('sys-status');
-    sp.classList.add('active');
-    document.getElementById('status-text').textContent = 'MONITORING';
+    setWs('ok', 'Connected · EAR+MAR+LSTM+YOLOv8 stream active');
+    document.getElementById('btn-conn').textContent = '⏹ DISCONNECT';
+    document.getElementById('btn-conn').classList.add('active');
+    document.getElementById('btn-rst').style.display = 'inline-block';
+    document.getElementById('sys-pill').classList.add('active');
+    document.getElementById('sys-txt').textContent = 'MONITORING';
     document.getElementById('hud-mode').textContent = 'BACKEND: ONLINE';
-    logEvent('safe', 'Connected to Backend', 'MediaPipe blendshape stream · ws://localhost:5001/ws');
-    showBanner('safe', '🟢', 'Backend connected — MediaPipe blendshape stream active');
+    logEv('safe', 'Connected to Backend', 'EAR+MAR+LSTM+YOLOv8+Fusion · v4.0');
+    showBanner('safe', '🟢', 'Backend connected — D.I.S.H.A. v4.0 active');
   };
 
-  ws.onmessage = (evt) => {
-    if (typeof evt.data === 'string') {
-      try { processFrame(JSON.parse(evt.data)); } catch(e) {}
+  ws.onmessage = (e) => {
+    if (typeof e.data === 'string') {
+      try { processFrame(JSON.parse(e.data)); } catch(_) {}
     }
   };
 
   ws.onerror = () => {
-    setWsStatus('err', 'Connection failed — is python3 app.py running on port 5001?');
-    logEvent('danger', 'WebSocket Error', 'Cannot reach ws://localhost:5001/ws · Start backend first');
+    setWs('err', 'Connection failed — is python3 app.py running on port 5001?');
+    logEv('danger', 'WebSocket Error', 'Cannot reach ws://localhost:5001/ws');
     showBanner('danger', '❌', 'Cannot connect — run: python3 app.py');
   };
 
   ws.onclose = () => {
     connected = false;
-    setWsStatus('', 'Disconnected');
-    document.getElementById('btn-connect').textContent = '⚡ CONNECT';
-    document.getElementById('btn-connect').classList.remove('active');
-    document.getElementById('sys-status').classList.remove('active');
-    document.getElementById('status-text').textContent = 'STANDBY';
+    setWs('', 'Disconnected');
+    document.getElementById('btn-conn').textContent = '⚡ CONNECT';
+    document.getElementById('btn-conn').classList.remove('active');
+    document.getElementById('sys-pill').classList.remove('active');
+    document.getElementById('sys-txt').textContent = 'STANDBY';
     document.getElementById('hud-mode').textContent = 'BACKEND: OFFLINE';
     document.getElementById('cam-img').style.display = 'none';
-    document.getElementById('cam-placeholder').style.display = 'flex';
-    logEvent('info', 'Disconnected', 'WebSocket closed');
+    document.getElementById('cam-ph').style.display = 'flex';
   };
 }
 
@@ -637,307 +696,262 @@ function disconnect() {
   if (ws) { ws.close(); ws = null; }
 }
 
-function setWsStatus(state, msg) {
+function setWs(state, msg) {
   const dot = document.getElementById('ws-dot');
   dot.className = 'ws-dot' + (state ? ' ' + state : '');
-  document.getElementById('ws-status-text').textContent = msg;
+  document.getElementById('ws-txt').textContent = msg;
 }
 
-// ── Main frame processor ───────────────────────────────────────────
+// ── Frame processor ────────────────────────────────────────────────
 function processFrame(d) {
-  sessionFrames++;
-  document.getElementById('stat-frames').textContent = sessionFrames > 9999 ? '9.9k+' : sessionFrames;
-
-  // Session timer
+  sFrames++;
+  document.getElementById('s-frames').textContent = sFrames > 9999 ? '9k+' : sFrames;
   if (sessionStart) {
     const s = Math.round((Date.now() - sessionStart) / 1000);
-    document.getElementById('stat-dur').textContent = s < 60 ? s + 's' : Math.floor(s/60) + 'm' + (s%60) + 's';
+    document.getElementById('s-dur').textContent = s < 60 ? s + 's' : Math.floor(s/60) + 'm' + (s%60) + 's';
   }
 
   // FPS
   const now = performance.now();
-  if (lastFrameTime > 0) {
-    const instantFps = 1000 / (now - lastFrameTime);
-    fpsSmooth = fpsSmooth * 0.85 + instantFps * 0.15;
+  if (lastFrameTs > 0) {
+    fpsSmooth = fpsSmooth * 0.88 + (1000 / (now - lastFrameTs)) * 0.12;
     const fps = Math.round(fpsSmooth);
     document.getElementById('fps-badge').textContent = fps + ' FPS';
-    document.getElementById('hud-fps').textContent = fps + 'fps';
-    document.getElementById('hud-fps').style.color = fps >= 20 ? 'var(--accent2)' : 'var(--warn)';
+    document.getElementById('hud-fps').textContent   = fps + 'fps';
+    document.getElementById('hud-fps').style.color   = fps >= 20 ? 'var(--accent2)' : 'var(--warn)';
   }
-  lastFrameTime = now;
+  lastFrameTs = now;
 
   // Camera frame
   if (d.frame) {
     const img = document.getElementById('cam-img');
     img.src = 'data:image/jpeg;base64,' + d.frame;
     img.style.display = 'block';
-    document.getElementById('cam-placeholder').style.display = 'none';
+    document.getElementById('cam-ph').style.display = 'none';
   }
 
   // HUD
-  document.getElementById('hud-faces').textContent = 'FACES: ' + (d.faces || 0);
-  document.getElementById('hud-conf').textContent   = 'CONF: ' + (d.conf ? (d.conf * 100).toFixed(0) + '%' : '--');
+  document.getElementById('hud-face').textContent = 'FACES: ' + (d.faces || 0);
+  document.getElementById('hud-ear').textContent  = d.faces ? 'EAR: ' + (d.ear || 0).toFixed(3) : 'EAR: --';
   if (d.width && d.height) document.getElementById('res-badge').textContent = d.width + '×' + d.height;
 
-  if (!d.faces) {
-    // No face — reset counters gently
-    drowsyFrameCount = Math.max(0, drowsyFrameCount - 2);
-    yawnStartTime = null;
-    return;
-  }
+  if (!d.faces) { return; }
 
-  // ── Extract values ──────────────────────────────────────────────
-  const blinkL   = d.blink_l   || 0;
-  const blinkR   = d.blink_r   || 0;
-  const blinkAvg = d.blink_avg || 0;
-  const jawOpen  = d.jaw_open  || 0;
-  const ear      = d.ear       || 0;
-  const mar      = d.mar       || 0;
-  const pitch    = d.pitch     || 0;
-  const yaw      = d.yaw       || 0;
-  const roll     = d.roll      || 0;
-  const phoneConf = d.phone_conf || 0;
+  const ear    = d.ear    || 0;
+  const earL   = d.ear_l  || 0;
+  const earR   = d.ear_r  || 0;
+  const mar    = d.mar    || 0;
+  const pitch  = d.pitch  || 0;
+  const yaw    = d.yaw    || 0;
+  const roll   = d.roll   || 0;
+  const etmp   = d.eye_temporal   || 0;
+  const mtmp   = d.mouth_temporal || 0;
+  const htmp   = d.head_temporal  || 0;
+  const perclos= d.perclos        || 0;
+  const phoneConf = d.phone_conf  || 0;
+  const riskScore = d.risk_score  || 0;
 
-  // ── Update metric displays ──────────────────────────────────────
+  // ── EAR display ─────────────────────────────────────────────────
+  const earPct = Math.min(100, (ear / 0.5) * 100);
+  document.getElementById('ear-val').textContent = ear.toFixed(3);
+  document.getElementById('ear-val').style.color = ear < EAR_THRESH ? 'var(--danger)' : 'var(--text-bright)';
+  document.getElementById('ear-l').textContent   = earL.toFixed(3);
+  document.getElementById('ear-r').textContent   = earR.toFixed(3);
+  document.getElementById('ear-l').style.color   = earL < EAR_THRESH ? 'var(--danger)' : 'var(--text-bright)';
+  document.getElementById('ear-r').style.color   = earR < EAR_THRESH ? 'var(--danger)' : 'var(--text-bright)';
+  document.getElementById('drowsy-f').textContent = d.drowsy_frames || 0;
+  const earFill = document.getElementById('ear-bar');
+  earFill.style.width      = earPct + '%';
+  earFill.style.background = ear < EAR_THRESH ? 'var(--danger)' : 'var(--safe)';
 
-  // Blink score
-  document.getElementById('blink-val').textContent   = blinkAvg.toFixed(3);
-  document.getElementById('blink-val').style.color   = blinkAvg > BLINK_THRESH ? 'var(--danger)' : 'var(--text-bright)';
-  document.getElementById('blink-l-val').textContent = blinkL.toFixed(2);
-  document.getElementById('blink-r-val').textContent = blinkR.toFixed(2);
-  document.getElementById('ear-val').textContent     = ear.toFixed(3);
-  document.getElementById('blink-l-val').style.color = blinkL > BLINK_THRESH ? 'var(--danger)' : 'var(--text-bright)';
-  document.getElementById('blink-r-val').style.color = blinkR > BLINK_THRESH ? 'var(--danger)' : 'var(--text-bright)';
+  // Eye diagrams — ry reflects EAR (higher EAR = more open)
+  const eyeRy = Math.max(1, Math.round(9 * Math.min(ear / 0.35, 1.0)));
+  ['lp','li','rp','ri'].forEach(id => document.getElementById(id).setAttribute('ry', eyeRy));
 
-  const blinkPct = Math.min(100, blinkAvg * 100);
-  const blinkFill = document.getElementById('blink-bar');
-  blinkFill.style.width = blinkPct + '%';
-  blinkFill.style.background = blinkAvg > BLINK_THRESH ? 'var(--danger)' : 'var(--safe)';
-
-  // Eye diagram — open = small ry, closed = large ry (inverted from EAR)
-  const eyeRy = Math.max(1, Math.round(10 * (1 - blinkAvg)));
-  ['left-pupil','left-iris','right-pupil','right-iris'].forEach(id => {
-    document.getElementById(id).setAttribute('ry', eyeRy);
-  });
-
-  // Jaw open
-  document.getElementById('jaw-val').textContent = jawOpen.toFixed(3);
-  document.getElementById('jaw-val').style.color = jawOpen > JAW_THRESH ? 'var(--warn)' : 'var(--text-bright)';
+  // ── MAR display ─────────────────────────────────────────────────
   document.getElementById('mar-val').textContent = mar.toFixed(3);
-  const jawPct = Math.min(100, jawOpen * 100);
-  const jawFill = document.getElementById('jaw-bar');
-  jawFill.style.width = jawPct + '%';
-  jawFill.style.background = jawOpen > JAW_THRESH ? 'var(--warn)' : 'var(--safe)';
+  document.getElementById('mar-val').style.color = mar > MAR_THRESH ? 'var(--warn)' : 'var(--text-bright)';
+  const marFill = document.getElementById('mar-bar');
+  marFill.style.width      = Math.min(100, mar * 100) + '%';
+  marFill.style.background = mar > MAR_THRESH ? 'var(--warn)' : 'var(--safe)';
+  document.getElementById('yawn-ms').textContent = d.yawn_ms ? (d.yawn_ms / 1000).toFixed(1) + 's' : '0s';
 
-  // Head pose
-  updatePose('hp-pitch', 'hp-pitch-val', pitch, PITCH_THRESH);
-  updatePose('hp-yaw',   'hp-yaw-val',   yaw,   YAW_THRESH);
-  updatePose('hp-roll',  'hp-roll-val',  roll,  ROLL_THRESH);
+  // ── Head pose ────────────────────────────────────────────────────
+  setPose('hp-pitch', 'hp-pitch-v', pitch, 20);
+  setPose('hp-yaw',   'hp-yaw-v',   yaw,   35);
+  setPose('hp-roll',  'hp-roll-v',  roll,  25);
 
-  // ── PERCLOS P80 (industry standard) ────────────────────────────
-  // Count frame as "closed" only if blink_avg > 0.80 (eyes >80% closed)
-  perclosWindow.push(blinkAvg > BLINK_PERCLOS ? 1 : 0);
-  if (perclosWindow.length > PERCLOS_WINDOW) perclosWindow.shift();
-  const perclos = Math.round(
-    (perclosWindow.filter(v => v).length / perclosWindow.length) * 100
-  );
-  document.getElementById('perclos-val').textContent = perclos;
+  // ── LSTM temporal scores ─────────────────────────────────────────
+  setTScore('ts-eye',   'ts-eye-bar',   etmp);
+  setTScore('ts-mouth', 'ts-mouth-bar', mtmp);
+  setTScore('ts-head',  'ts-head-bar',  htmp);
+
+  // ── PERCLOS ──────────────────────────────────────────────────────
+  document.getElementById('perclos-val').textContent = perclos.toFixed(1);
   const pFill = document.getElementById('perclos-bar');
-  pFill.style.width = Math.min(100, (perclos / 30) * 100) + '%'; // scale: 30% = full bar
+  pFill.style.width      = Math.min(100, (perclos / 30) * 100) + '%';
   pFill.style.background = perclos >= PERCLOS_ALERT ? 'var(--danger)' : perclos >= 8 ? 'var(--warn)' : 'var(--safe)';
 
-  // ── DROWSINESS detection (eyes only — independent of mouth) ────
-  //
-  // Increment when blinkAvg > BLINK_THRESH (eyes partially/mostly closed)
-  // Decrement 2x faster when open (prevents lingering from blinks)
-  // Triggered when consecutive closed frames ≥ DROWSY_FRAMES (~0.67s)
-  //
-  if (blinkAvg > BLINK_THRESH) {
-    drowsyFrameCount = Math.min(drowsyFrameCount + 1, DROWSY_FRAMES + 60);
-  } else {
-    drowsyFrameCount = Math.max(0, drowsyFrameCount - 2);
-  }
-  const isDrowsy = drowsyFrameCount >= DROWSY_FRAMES;
-  setStateItem('st-drowsy', 'st-drowsy-val',
-    isDrowsy ? 'active' : null,
-    isDrowsy ? 'DETECTED' : drowsyFrameCount + ' frames'
-  );
+  // ── Detection states ─────────────────────────────────────────────
+  const isDrowsy   = d.drowsy    || false;
+  const isYawning  = d.yawning   || false;
+  const hasPhone   = d.phone     || false;
+  const isDistract = d.distracted || false;
 
-  // Rising edge + cooldown
-  if (isDrowsy && !wasDrowsy && Date.now() - lastDrowsyAlert > ALERT_COOLDOWN_MS) {
+  setSt('st-drowsy', 'st-drowsy-v', isDrowsy ? 'active' : null,    isDrowsy ? 'DETECTED' : (d.drowsy_frames || 0) + ' frames');
+  setSt('st-yawn',   'st-yawn-v',   isYawning ? 'warn'  : (d.yawn_ms > 0 ? 'warn' : null), isYawning ? 'YAWNING' : d.yawn_ms > 0 ? (d.yawn_ms/1000).toFixed(1)+'s…' : '—');
+  setSt('st-phone',  'st-phone-v',  hasPhone ? 'warn' : null,      hasPhone ? (phoneConf*100).toFixed(0)+'%' : '—');
+  setSt('st-dist',   'st-dist-v',   isDistract ? 'warn' : null,    isDistract ? 'DISTRACTED' : '—');
+
+  // ── Risk gauge + breakdown ────────────────────────────────────────
+  updateGauge(riskScore);
+  const comp = d.risk_components || {};
+  setRb('rb-eye', 'rb-eye-v', comp['eye_closure_temporal'] || 0, 35);
+  setRb('rb-pc',  'rb-pc-v',  comp['perclos']              || 0, 25);
+  setRb('rb-yn',  'rb-yn-v',  comp['yawn_temporal']        || 0, 15);
+  setRb('rb-ph',  'rb-ph-v',  comp['phone']                || 0, 15);
+  setRb('rb-hd',  'rb-hd-v',  comp['head_pose']            || 0, 10);
+
+  // ── Alert logic (rising edge + cooldown) ─────────────────────────
+  if (isDrowsy && !prevDrowsy && Date.now() - lastDrowsyAlert > ALERT_COOL) {
     lastDrowsyAlert = Date.now();
-    sessionAlerts++;
-    document.getElementById('stat-alerts').textContent = sessionAlerts;
-    triggerModal('danger', '😴', 'DROWSINESS DETECTED', 'Eyes closed too long — please stay alert!');
+    sAlerts++; document.getElementById('s-alerts').textContent = sAlerts;
+    triggerModal('danger', '😴', 'DROWSINESS DETECTED', `EAR: ${ear.toFixed(3)} — Eyes closed too long!`);
     showBanner('danger', '⚠️', 'DROWSINESS ALERT — Eyes closed for extended period');
-    logEvent('danger', 'Drowsiness Alert', `Blink: ${blinkAvg.toFixed(2)} · ${drowsyFrameCount} frames`);
+    logEv('danger', 'Drowsiness Alert', `EAR: ${ear.toFixed(3)} · ${d.drowsy_frames} frames · Risk: ${riskScore}`);
   }
-  wasDrowsy = isDrowsy;
-
-  // ── YAWNING detection (jaw only — completely separate from drowsy) ──
-  //
-  // Industry standard (Preprints 2025): mouth must be open for ≥2 seconds
-  // to qualify as a yawn vs. normal speech/talking.
-  // We use jawOpen blendshape — completely independent of eye state.
-  //
-  if (jawOpen > JAW_THRESH) {
-    if (!yawnStartTime) yawnStartTime = Date.now();
-  } else {
-    yawnStartTime = null;
-  }
-  const yawnSustainedMs = yawnStartTime ? (Date.now() - yawnStartTime) : 0;
-  isYawning = yawnSustainedMs >= YAWN_MS;
-  setStateItem('st-yawn', 'st-yawn-val',
-    isYawning ? 'warn' : (yawnStartTime ? 'warn' : null),
-    isYawning ? 'YAWNING' : (yawnStartTime ? `${(yawnSustainedMs/1000).toFixed(1)}s…` : '—')
-  );
-
-  // Rising edge
-  if (isYawning && !wasYawning) {
-    sessionYawns++;
-    document.getElementById('stat-yawns').textContent = sessionYawns;
-    logEvent('warn', 'Yawn Detected', `jaw_open: ${jawOpen.toFixed(2)} · sustained ${YAWN_MS}ms`);
-    if (Date.now() - lastYawnAlert > ALERT_COOLDOWN_MS) {
+  if (isYawning && !prevYawn) {
+    sYawns++; document.getElementById('s-yawns').textContent = sYawns;
+    logEv('warn', 'Yawn Detected', `MAR: ${mar.toFixed(3)} · sustained 2s · LSTM mouth: ${mtmp.toFixed(2)}`);
+    if (Date.now() - lastYawnAlert > ALERT_COOL) {
       lastYawnAlert = Date.now();
-      showBanner('warn', '🥱', 'Yawn detected — fatigue building');
+      showBanner('warn', '🥱', 'Yawn detected — fatigue building. Risk: ' + riskScore);
     }
   }
-  wasYawning = isYawning;
-
-  // ── PHONE detection ────────────────────────────────────────────
-  const hasPhone = phoneConf > 0.5;
-  setStateItem('st-phone', 'st-phone-val',
-    hasPhone ? 'active' : null,
-    hasPhone ? `${(phoneConf * 100).toFixed(0)}% conf` : '—'
-  );
-  if (hasPhone && !phoneDetected) {
-    logEvent('warn', 'Phone Use Detected', `Confidence: ${(phoneConf * 100).toFixed(0)}%`);
-    if (Date.now() - lastPhoneAlert > ALERT_COOLDOWN_MS) {
-      lastPhoneAlert = Date.now();
-      showBanner('warn', '📱', 'Phone detected — eyes off road!');
-    }
+  if (hasPhone && !prevPhone && Date.now() - lastPhoneAlert > ALERT_COOL) {
+    lastPhoneAlert = Date.now();
+    showBanner('warn', '📱', `Phone detected (${(phoneConf*100).toFixed(0)}%) — eyes off road!`);
+    logEv('warn', 'Phone Detected (YOLO)', `Confidence: ${(phoneConf*100).toFixed(0)}%`);
   }
-  phoneDetected = hasPhone;
-
-  // ── DISTRACTION (head pose) ────────────────────────────────────
-  const isDistracted = Math.abs(yaw) > YAW_THRESH || Math.abs(pitch) > PITCH_THRESH;
-  setStateItem('st-distract', 'st-distract-val',
-    isDistracted ? 'warn' : null,
-    isDistracted ? 'DISTRACTED' : '—'
-  );
-  if (isDistracted && !distractDetected && Date.now() - lastDistractAlert > ALERT_COOLDOWN_MS) {
-    lastDistractAlert = Date.now();
+  if (isDistract && Date.now() - lastDistAlert > ALERT_COOL) {
+    lastDistAlert = Date.now();
     showBanner('warn', '👀', `Head turned — Yaw:${yaw.toFixed(0)}° Pitch:${pitch.toFixed(0)}°`);
-    logEvent('warn', 'Distraction Alert', `Yaw:${yaw.toFixed(1)}° Pitch:${pitch.toFixed(1)}°`);
+    logEv('warn', 'Distraction Alert', `Yaw:${yaw.toFixed(1)}° Pitch:${pitch.toFixed(1)}°`);
   }
-  distractDetected = isDistracted;
 
-  // ── Risk composite score ───────────────────────────────────────
-  let rawRisk = 0;
-  if (isDrowsy)                   rawRisk += 40;
-  if (isYawning)                  rawRisk += 15;
-  if (perclos >= PERCLOS_ALERT)   rawRisk += 25;
-  else if (perclos >= 8)          rawRisk += 10;
-  if (hasPhone)                   rawRisk += 30;
-  if (isDistracted)               rawRisk += 15;
-  rawRisk = Math.min(100, rawRisk);
-  smoothRisk = 0.80 * smoothRisk + 0.20 * rawRisk;
-  updateGauge(Math.round(smoothRisk));
+  prevDrowsy = isDrowsy; prevYawn = isYawning; prevPhone = hasPhone;
 
-  // ── Temporal history ───────────────────────────────────────────
-  blinkHistory.push(blinkAvg);
-  riskHistory.push(smoothRisk / 100);
-  if (blinkHistory.length > 180) { blinkHistory.shift(); riskHistory.shift(); }
+  // ── Temporal chart ───────────────────────────────────────────────
+  earHist.push(ear);
+  riskHist.push(riskScore / 100);
+  perclosHist.push(perclos / 100);
+  if (earHist.length > 180) { earHist.shift(); riskHist.shift(); perclosHist.shift(); }
   drawChart();
 
-  // Safe state periodic banner
-  if (!isDrowsy && !isYawning && !isDistracted && !hasPhone && sessionFrames % 300 === 0) {
-    showBanner('safe', '✅', 'Driver state nominal — all indicators normal');
+  // Nominal periodic banner
+  if (!isDrowsy && !isYawning && !hasPhone && !isDistract && sFrames % 300 === 0) {
+    showBanner('safe', '✅', `Driver nominal — Risk: ${riskScore} · PERCLOS: ${perclos.toFixed(1)}%`);
   }
 }
 
-// ── Head pose row ──────────────────────────────────────────────────
-function updatePose(rowId, valId, val, thresh) {
+// ── Head pose row helper ────────────────────────────────────────────
+function setPose(rowId, valId, val, thresh) {
   const row = document.getElementById(rowId);
-  const alert = Math.abs(val) > thresh;
-  row.className = 'state-item' + (alert ? ' warn' : '');
+  row.className = 'si' + (Math.abs(val) > thresh ? ' warn' : '');
   document.getElementById(valId).textContent = (val >= 0 ? '+' : '') + val.toFixed(0) + '°';
 }
 
-// ── State item helper ──────────────────────────────────────────────
-function setStateItem(rowId, valId, cls, text) {
-  const row = document.getElementById(rowId);
-  row.className = 'state-item' + (cls ? ' ' + cls : '');
+// ── State item helper ───────────────────────────────────────────────
+function setSt(rowId, valId, cls, text) {
+  document.getElementById(rowId).className = 'si' + (cls ? ' ' + cls : '');
   document.getElementById(valId).textContent = text;
 }
 
-// ── Risk gauge ─────────────────────────────────────────────────────
+// ── LSTM score cell ─────────────────────────────────────────────────
+function setTScore(valId, barId, val) {
+  const el  = document.getElementById(valId);
+  const bar = document.getElementById(barId);
+  el.textContent   = val.toFixed(3);
+  el.style.color   = val > 0.5 ? 'var(--danger)' : val > 0.25 ? 'var(--warn)' : 'var(--accent)';
+  bar.style.width  = Math.min(100, val * 100) + '%';
+  bar.style.background = val > 0.5 ? 'var(--danger)' : val > 0.25 ? 'var(--warn)' : 'var(--accent)';
+}
+
+// ── Risk breakdown bar ──────────────────────────────────────────────
+function setRb(barId, valId, val, maxW) {
+  document.getElementById(barId).style.width = Math.min(100, (val / maxW) * 100) + '%';
+  document.getElementById(valId).textContent = val.toFixed(0);
+}
+
+// ── Risk gauge ──────────────────────────────────────────────────────
 function updateGauge(score) {
   const arc    = document.getElementById('gauge-arc');
   const needle = document.getElementById('gauge-needle');
-  const total  = 251.2;
+  const total  = 239;
   arc.style.strokeDashoffset = total - (score / 100) * total;
-  const color = score < 30 ? 'var(--safe)' : score < 60 ? 'var(--warn)' : 'var(--danger)';
-  arc.style.stroke = color;
-  needle.setAttribute('transform', `rotate(${-90 + (score/100)*180}, 90, 100)`);
-  needle.style.stroke = color;
+  const col = score < 30 ? 'var(--safe)' : score < 65 ? 'var(--warn)' : 'var(--danger)';
+  arc.style.stroke = col;
+  needle.setAttribute('transform', `rotate(${-90 + (score/100)*180}, 85, 96)`);
+  needle.style.stroke = col;
   document.getElementById('risk-score').textContent = score;
-  document.getElementById('risk-score').style.color = color;
-  const lvl = document.getElementById('risk-level');
-  lvl.style.color = color;
-  lvl.textContent = score < 30 ? 'SAFE' : score < 60 ? 'MODERATE RISK' : 'HIGH RISK';
+  document.getElementById('risk-score').style.color = col;
+  const lvl = document.getElementById('risk-lvl');
+  lvl.style.color   = col;
+  lvl.textContent   = score < 30 ? 'SAFE' : score < 65 ? 'MODERATE RISK' : 'HIGH RISK';
 }
 
-// ── Temporal chart ─────────────────────────────────────────────────
+// ── Temporal chart ──────────────────────────────────────────────────
 function drawChart() {
-  const canvas = document.getElementById('temporal-canvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.parentElement.clientWidth || 400;
-  const H = 80;
+  const canvas = document.getElementById('tchart');
+  const W = canvas.parentElement.clientWidth - 40 || 400;
+  const H = 72;
   canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
   // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
   [0.25, 0.5, 0.75].forEach(y => {
-    ctx.beginPath(); ctx.moveTo(0, H*y); ctx.lineTo(W, H*y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H * y); ctx.lineTo(W, H * y); ctx.stroke();
   });
 
-  // BLINK_THRESH line
-  ctx.setLineDash([4,4]);
-  ctx.strokeStyle = 'rgba(255,179,0,0.4)'; ctx.lineWidth = 1;
-  const ty = H - BLINK_THRESH * H * 0.9 - H * 0.05;
+  // EAR threshold line
+  ctx.setLineDash([3,3]);
+  ctx.strokeStyle = 'rgba(255,179,0,0.35)'; ctx.lineWidth = 1;
+  const ty = H - (EAR_THRESH / 0.5) * H * 0.9 - H * 0.05;
   ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
   ctx.setLineDash([]);
 
-  const N = blinkHistory.length;
+  const N = earHist.length;
   if (N < 2) return;
 
-  function drawLine(data, color) {
+  function drawLine(data, color, scale = 1) {
     ctx.beginPath();
     data.forEach((v, i) => {
       const x = (i / (N-1)) * W;
-      const y = H - v * H * 0.9 - H * 0.05;
+      const y = H - Math.min(v * scale, 1) * H * 0.9 - H * 0.05;
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
     ctx.strokeStyle = color; ctx.lineWidth = 1.5;
     ctx.shadowColor = color; ctx.shadowBlur = 4;
     ctx.stroke(); ctx.shadowBlur = 0;
   }
-  drawLine(blinkHistory, 'rgba(0,212,255,0.85)');
-  drawLine(riskHistory,  'rgba(255,59,48,0.75)');
+
+  // EAR (0–0.5 → 0–1 scale)
+  drawLine(earHist.map(v => v / 0.5), 'rgba(0,200,240,0.85)');
+  // Risk (already 0–1)
+  drawLine(riskHist, 'rgba(255,53,53,0.75)');
+  // PERCLOS (0–1, already normalized)
+  drawLine(perclosHist, 'rgba(255,179,0,0.65)');
 }
 
-// ── Alert modal ────────────────────────────────────────────────────
+// ── Alert modal ──────────────────────────────────────────────────────
 function triggerModal(type, icon, title, sub) {
-  const overlay = document.getElementById('alert-overlay');
-  const modal   = document.getElementById('alert-modal');
-  modal.className = 'alert-modal ' + type;
+  document.getElementById('modal').className = 'modal ' + type;
   document.getElementById('modal-icon').textContent  = icon;
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-sub').textContent   = sub;
-  overlay.classList.add('show');
-  // Audio beep
+  document.getElementById('modal-overlay').classList.add('show');
   try {
     const ac = new AudioContext();
     const osc = ac.createOscillator();
@@ -946,14 +960,14 @@ function triggerModal(type, icon, title, sub) {
     osc.type = 'square';
     osc.frequency.setValueAtTime(880, ac.currentTime);
     osc.frequency.setValueAtTime(660, ac.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.15, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
-    osc.start(); osc.stop(ac.currentTime + 0.6);
-  } catch(e) {}
+    gain.gain.setValueAtTime(0.12, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
+    osc.start(); osc.stop(ac.currentTime + 0.7);
+  } catch(_) {}
 }
-function dismissAlert() { document.getElementById('alert-overlay').classList.remove('show'); }
+function dismissModal() { document.getElementById('modal-overlay').classList.remove('show'); }
 
-// ── Banner ─────────────────────────────────────────────────────────
+// ── Alert banner ─────────────────────────────────────────────────────
 function showBanner(type, icon, text) {
   const b = document.getElementById('alert-banner');
   b.className = 'alert-banner ' + type;
@@ -964,46 +978,43 @@ function showBanner(type, icon, text) {
   bannerTimer = setTimeout(() => b.classList.remove('show'), 5000);
 }
 
-// ── Event log ──────────────────────────────────────────────────────
-function logEvent(type, name, meta) {
-  eventCount++;
-  document.getElementById('event-count').textContent = eventCount + (eventCount === 1 ? ' event' : ' events');
-  const log = document.getElementById('event-log');
+// ── Event log ─────────────────────────────────────────────────────────
+function logEv(type, name, meta) {
+  evCount++;
+  document.getElementById('ev-count').textContent = evCount + (evCount === 1 ? ' event' : ' events');
+  const log = document.getElementById('ev-log');
   const t   = new Date().toTimeString().slice(0,8);
   const div = document.createElement('div');
-  div.className = 'event-item ev-' + type;
-  div.innerHTML = `<div class="event-dot"></div><div class="event-content"><div class="event-name">${name}</div><div class="event-meta">${t} · ${meta}</div></div>`;
+  div.className = 'ev ev-' + type;
+  div.innerHTML = `<div class="ev-dot"></div><div class="ev-content"><div class="ev-name">${name}</div><div class="ev-meta">${t} · ${meta}</div></div>`;
   log.insertBefore(div, log.firstChild);
   if (log.children.length > 60) log.removeChild(log.lastChild);
 }
 
-// ── Reset session ──────────────────────────────────────────────────
+// ── Reset ─────────────────────────────────────────────────────────────
 function resetSession() {
-  drowsyFrameCount = 0; wasDrowsy = false;
-  yawnStartTime = null; isYawning = false; wasYawning = false;
-  perclosWindow = []; blinkHistory = []; riskHistory = [];
-  sessionAlerts = 0; sessionYawns = 0; sessionFrames = 0;
-  smoothRisk = 0; phoneDetected = false; distractDetected = false;
-  lastDrowsyAlert = 0; lastYawnAlert = 0; lastPhoneAlert = 0; lastDistractAlert = 0;
+  sFrames = sAlerts = sYawns = 0;
+  prevDrowsy = prevYawn = prevPhone = false;
+  lastDrowsyAlert = lastYawnAlert = lastPhoneAlert = lastDistAlert = 0;
+  earHist = []; riskHist = []; perclosHist = [];
   sessionStart = Date.now();
-  ['stat-alerts','stat-yawns','stat-frames'].forEach(id => document.getElementById(id).textContent = '0');
-  document.getElementById('stat-dur').textContent = '0s';
-  document.getElementById('event-log').innerHTML = '';
-  eventCount = 0;
-  document.getElementById('event-count').textContent = '0 events';
+  ['s-alerts','s-yawns','s-frames'].forEach(id => document.getElementById(id).textContent = '0');
+  document.getElementById('s-dur').textContent = '0s';
+  document.getElementById('ev-log').innerHTML = '';
+  evCount = 0;
+  document.getElementById('ev-count').textContent = '0 events';
   updateGauge(0);
-  logEvent('info', 'Session Reset', 'All counters cleared');
+  logEv('info', 'Session Reset', 'All counters cleared');
 }
 
-// Init canvas
 window.addEventListener('load', () => {
-  const tc = document.getElementById('temporal-canvas');
-  tc.width = tc.parentElement.clientWidth || 400;
-  tc.height = 80;
+  const c = document.getElementById('tchart');
+  c.width = (c.parentElement.clientWidth - 40) || 400;
+  c.height = 72;
 });
 window.addEventListener('resize', () => {
-  const tc = document.getElementById('temporal-canvas');
-  if (tc) tc.width = tc.parentElement.clientWidth || 400;
+  const c = document.getElementById('tchart');
+  if (c) c.width = (c.parentElement.clientWidth - 40) || 400;
 });
 </script>
 </body>
