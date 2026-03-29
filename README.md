@@ -1,32 +1,3 @@
-Got it — the issue is **GitHub README doesn’t support full HTML pages (`<html>`, `<head>`, `<style>`)**, so it’s rendering your raw tags as text (as seen in your screenshot).
-
-What you want instead is a **Markdown + inline HTML hybrid** (GitHub-compatible, clean, professional, and styled via badges + layout — not CSS).
-
----
-
-# ✅ **FINAL: Professional GitHub README (Drop-in Ready)**
-
-Just copy-paste this into your `README.md` 👇
-
----
-
-````markdown
-<h1 align="center">🚘 D.I.S.H.A.</h1>
-<h3 align="center">Driver Information & State Hazard Analytics</h3>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Build-Passing-success?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python" />
-  <img src="https://img.shields.io/badge/Backend-FastAPI-green?style=for-the-badge&logo=fastapi" />
-  <img src="https://img.shields.io/badge/Computer%20Vision-OpenCV-orange?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Model-LSTM-purple?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-blue?style=for-the-badge&logo=postgresql" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" />
-</p>
-
----
-
-## 🚀 Overview
 
 **D.I.S.H.A.** is an advanced, real-time driver monitoring system that uses **Computer Vision + Temporal Machine Learning** to detect:
 
