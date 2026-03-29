@@ -1,86 +1,162 @@
-🚘 D.I.S.H.A.
-Driver Information & State Hazard Analytics
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D.I.S.H.A. README</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      color: #38bdf8;
+    }
+    code {
+      background-color: #1e293b;
+      padding: 4px 6px;
+      border-radius: 4px;
+      color: #facc15;
+    }
+    pre {
+      background-color: #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    ul {
+      margin-left: 20px;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
 
-D.I.S.H.A. is an advanced, real-time driver state monitoring system. It leverages computer vision and temporal machine learning models to detect drowsiness, yawning, and distracted driving, effectively fusing multiple risk factors into a unified risk score. The project features a real-time computer vision processing server, a robust logging API, and a sleek log review dashboard.
+  <h1>🚘 D.I.S.H.A.</h1>
+  <h3>Driver Information & State Hazard Analytics</h3>
 
-✨ Key Features
-👁️ Drowsiness Detection: Tracks Eye Aspect Ratio (EAR) and utilizes PERCLOS (Percentage of Eyelid Closure) to accurately identify driver fatigue.
+  <p>
+    <strong>D.I.S.H.A.</strong> is an advanced, real-time driver state monitoring system. It leverages 
+    computer vision and temporal machine learning models to detect drowsiness, yawning, and distracted driving, 
+    effectively fusing multiple risk factors into a unified risk score.
+  </p>
 
-🥱 Yawn Detection: Monitors Mouth Aspect Ratio (MAR) to detect yawning events that are sustained over time.
+  <p>
+    The project features a real-time computer vision processing server, a robust logging API, 
+    and a sleek log review dashboard.
+  </p>
 
-📱 Phone & Distraction Detection: Integrates YOLOv8n for real-time mobile phone detection. It also calculates precise head poses (pitch, yaw, roll) to determine if the driver's eyes are off the road.
+  <div class="section">
+    <h2>✨ Key Features</h2>
 
-🧠 Temporal LSTM Modeling: Uses an LSTM model with a 30-frame window to analyze temporal changes in driver state, greatly minimizing false positives.
+    <ul>
+      <li>
+        <strong>👁️ Drowsiness Detection:</strong> Tracks Eye Aspect Ratio (EAR) and utilizes 
+        PERCLOS (Percentage of Eyelid Closure) to identify driver fatigue.
+      </li>
 
-📊 Decision Fusion: Intelligently combines eye closure, yawning, head pose, and phone presence into a single, smooth risk_score (SAFE, MODERATE, HIGH RISK).
+      <li>
+        <strong>🥱 Yawn Detection:</strong> Monitors Mouth Aspect Ratio (MAR) to detect sustained yawning events.
+      </li>
 
-🔒 Secure Logging API: A FastAPI backend connected to PostgreSQL logs sessions, events, and metrics. It supports role-based access control (Admin & User).
+      <li>
+        <strong>📱 Phone & Distraction Detection:</strong> Uses YOLOv8n for mobile detection and calculates 
+        head pose (pitch, yaw, roll) to detect distraction.
+      </li>
 
-📈 Log Review Dashboard: A custom frontend for reviewing driving sessions, event logs, and analyzing overall performance metrics.
+      <li>
+        <strong>🧠 Temporal LSTM Modeling:</strong> Uses a 30-frame LSTM window to analyze temporal changes 
+        and reduce false positives.
+      </li>
 
-🛠️ Architecture & Tech Stack
-Computer Vision Server (app.py)
+      <li>
+        <strong>📊 Decision Fusion:</strong> Combines all signals into a unified 
+        <code>risk_score</code> (SAFE, MODERATE, HIGH RISK).
+      </li>
 
-Python Framework: Flask + Flask-Sock (WebSockets)
+      <li>
+        <strong>🔒 Secure Logging API:</strong> FastAPI backend with PostgreSQL, supporting role-based access.
+      </li>
 
-Machine Learning: MediaPipe (Face Landmarks), Ultralytics (YOLOv8n)
+      <li>
+        <strong>📈 Log Review Dashboard:</strong> Frontend for session tracking and analytics.
+      </li>
+    </ul>
+  </div>
 
-Math & Vision: OpenCV, NumPy
+  <div class="section">
+    <h2>🛠️ Architecture & Tech Stack</h2>
 
-Logging Backend (main.py)
+    <h3>Computer Vision Server (app.py)</h3>
+    <ul>
+      <li><strong>Framework:</strong> Flask + Flask-Sock (WebSockets)</li>
+      <li><strong>ML:</strong> MediaPipe, Ultralytics (YOLOv8n)</li>
+      <li><strong>Libraries:</strong> OpenCV, NumPy</li>
+    </ul>
 
-API Framework: FastAPI, Uvicorn
+    <h3>Logging Backend (main.py)</h3>
+    <ul>
+      <li><strong>API:</strong> FastAPI, Uvicorn</li>
+      <li><strong>Database:</strong> PostgreSQL (asyncpg)</li>
+      <li><strong>Auth:</strong> JWT (python-jose), Passlib (bcrypt)</li>
+    </ul>
 
-Database: PostgreSQL (asyncpg)
+    <h3>Frontend (disha_frontend.html)</h3>
+    <ul>
+      <li><strong>Stack:</strong> HTML5, CSS3, JavaScript</li>
+      <li><strong>Design:</strong> Dark mode UI, responsive layout</li>
+    </ul>
+  </div>
 
-Authentication: JWT (python-jose), Passlib (bcrypt)
+  <div class="section">
+    <h2>🚀 Installation & Setup</h2>
 
-Frontend (disha_frontend.html)
+    <h3>1. Database Setup</h3>
+    <pre><code>createdb disha_db</code></pre>
 
-Stack: Pure HTML5, CSS3, JavaScript
+    <h3>2. Start Logging API</h3>
+    <pre><code>pip install fastapi uvicorn asyncpg passlib[bcrypt] python-jose[cryptography] python-dotenv pydantic[email]
+uvicorn main:app --reload --port 8000</code></pre>
 
-Design: Custom dark-mode UI with space-grotesk typography and responsive stat grids.
+    <p>Access API docs at: <code>http://localhost:8000/docs</code></p>
 
-🚀 Installation & Setup
-1. Database Setup
-Ensure PostgreSQL is installed and running, then create the database:
+    <h3>3. Start Computer Vision Server</h3>
+    <pre><code>pip install flask flask-sock opencv-python mediapipe numpy ultralytics
+python3 app.py</code></pre>
 
-Bash
-createdb disha_db
-2. Start the Logging API (FastAPI)
-Navigate to the disha_backend directory, install requirements, and spin up the server:
+    <p>Runs on: <code>http://localhost:5001</code></p>
+  </div>
 
-Bash
-pip install fastapi uvicorn asyncpg passlib[bcrypt] python-jose[cryptography] python-dotenv pydantic[email]
-uvicorn main:app --reload --port 8000
-Note: The API documentation will be automatically generated at http://localhost:8000/docs.
+  <div class="section">
+    <h2>💻 Usage & Dashboard Access</h2>
 
-3. Start the Computer Vision Server
-Open a new terminal, navigate to the main directory, install the computer vision dependencies, and start the app:
+    <ul>
+      <li>Ensure both servers are running (Ports 5001 & 8000).</li>
+      <li>Open: <code>http://localhost:5001</code> for live monitoring.</li>
+      <li>Open <code>disha_frontend.html</code> for analytics dashboard.</li>
+    </ul>
 
-Bash
-pip install flask flask-sock opencv-python mediapipe numpy ultralytics
-python3 app.py
-Note: This server runs on http://localhost:5001. It will automatically download the MediaPipe face landmarker model on its first run.
+    <h3>Default Admin Credentials</h3>
+    <ul>
+      <li><strong>Username:</strong> admin</li>
+      <li><strong>Password:</strong> admin123</li>
+    </ul>
+  </div>
 
-💻 Usage & Dashboard Access
-Ensure both your Vision Server (Port 5001) and Logging API (Port 8000) are running.
+  <div class="section">
+    <h2>⚙️ Configuration Thresholds</h2>
 
-Open your web browser and navigate to http://localhost:5001 to view the active WebSockets monitoring app.
+    <ul>
+      <li><strong>EAR:</strong> &lt; 0.21 → Eye closure</li>
+      <li><strong>MAR:</strong> &gt; 0.50 → Yawn detection</li>
+      <li><strong>Head Pose:</strong> Pitch &gt; 20° or Yaw &gt; 35° → Distraction</li>
+    </ul>
+  </div>
 
-For Historical Analytics & Admin controls, launch the frontend page (disha_frontend.html) in your browser.
-
-Default Admin Credentials:
-
-Username: admin
-
-Password: admin123
-
-⚙️ Configuration Thresholds
-D.I.S.H.A. comes pre-configured with optimally tuned thresholds:
-
-EAR (Eye Aspect Ratio): < 0.21 triggers closure detection.
-
-MAR (Mouth Aspect Ratio): > 0.50 triggers yawn detection.
-
-Head Pose: Pitch > 20.0° or Yaw > 35.0° flags driver distraction.
+</body>
+</html>
