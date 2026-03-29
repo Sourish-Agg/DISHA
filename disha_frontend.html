@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D.I.S.H.A. — Log Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ──────────────────────────────────────────────────────── */
+:root {
+  --ink:   #0d1117;  --ink2:  #161b22;  --ink3:  #1c2333;
+  --line:  #21262d;  --line2: #30363d;
+  --t1: #e6edf3;  --t2: #8b949e;  --t3: #484f58;
+  --blue:  #58a6ff;  --blue-d: #1f6feb;  --blue-bg: rgba(31,111,235,.1);
+  --green: #3fb950;  --green-bg: rgba(63,185,80,.1);
+  --amber: #d29922;  --amber-bg: rgba(210,153,34,.1);
+  --red:   #f85149;  --red-bg:   rgba(248,81,73,.1);
+  --purple:#a5a6ff;  --purple-bg:rgba(165,166,255,.1);
+  --hud: 'Space Grotesk', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --r4: 6px; --r6: 10px; --r8: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:14px; }
+body { background:var(--ink); color:var(--t1); font-family:var(--hud); min-height:100vh; }
+
+/* ── AUTH ────────────────────────────────────────────────────────── */
+#view-auth {
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh; padding:20px;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(31,111,235,.08) 0%, transparent 70%);
+}
+.auth-card {
+  width:100%; max-width:400px;
+  background:var(--ink2); border:1px solid var(--line); border-radius:var(--r8);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,.02);
+  overflow:hidden;
+}
+.auth-brand {
+  padding:28px 32px 20px;
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:12px;
+}
+.brand-icon {
+  width:40px; height:40px; border-radius:var(--r4);
+  background: linear-gradient(135deg, var(--blue-d), #0d4191);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; font-weight:700; color:#fff; letter-spacing:-0.5px;
+  box-shadow: 0 0 0 1px rgba(88,166,255,.3), 0 4px 12px rgba(31,111,235,.4);
+}
+.brand-name  { font-size:20px; font-weight:700; color:var(--t1); letter-spacing:.5px; }
+.brand-sub   { font-size:11px; color:var(--t3); margin-top:1px; font-family:var(--mono); letter-spacing:.5px; }
+.auth-tabs   { display:flex; border-bottom:1px solid var(--line); }
+.auth-tab    {
+  flex:1; padding:10px; font-family:var(--hud); font-size:13px; font-weight:500;
+  background:transparent; border:none; color:var(--t3); cursor:pointer; transition:.15s;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.auth-tab.on { color:var(--blue); border-bottom-color:var(--blue); }
+.auth-body   { padding:24px 28px 28px; }
+.field       { margin-bottom:16px; }
+.field-label {
+  display:block; font-size:12px; font-weight:500; color:var(--t2);
+  margin-bottom:6px; letter-spacing:.3px;
+}
+.field-input {
+  width:100%; padding:9px 12px; background:var(--ink3); border:1px solid var(--line2);
+  border-radius:var(--r4); color:var(--t1); font-family:var(--hud); font-size:13px;
+  outline:none; transition:.15s;
+}
+.field-input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(88,166,255,.12); }
+.auth-btn {
+  width:100%; padding:10px; background:var(--blue-d); border:none; border-radius:var(--r4);
+  color:#fff; font-family:var(--hud); font-size:13px; font-weight:600; cursor:pointer; transition:.15s;
+  margin-top:4px; letter-spacing:.3px;
+}
+.auth-btn:hover { background:#388bfd; }
+.auth-btn:active { transform:scale(.99); }
+.auth-error { font-size:12px; color:var(--red); text-align:center; margin-top:10px; min-height:16px; font-family:var(--mono); }
+.auth-hint  { font-size:11px; color:var(--t3); text-align:center; margin-top:14px; font-family:var(--mono); }
+.auth-hint b{ color:var(--t2); }
+
+/* ── APP SHELL ───────────────────────────────────────────────────── */
+#view-app { display:none; flex-direction:column; min-height:100vh; }
+
+/* topbar */
+.topbar {
+  height:56px; background:var(--ink2); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; padding:0 24px; gap:16px;
+  position:sticky; top:0; z-index:50;
+}
+.topbar-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.tb-icon {
+  width:30px; height:30px; border-radius:6px;
+  background:linear-gradient(135deg,var(--blue-d),#0d4191);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:#fff;
+}
+.tb-name { font-size:15px; font-weight:700; color:var(--t1); letter-spacing:.5px; }
+.topbar-nav { display:flex; gap:2px; margin-left:8px; }
+.tn-btn {
+  padding:5px 12px; background:transparent; border:none; color:var(--t3);
+  font-family:var(--hud); font-size:13px; font-weight:500; cursor:pointer;
+  border-radius:var(--r4); transition:.15s;
+}
+.tn-btn:hover { color:var(--t1); background:var(--ink3); }
+.tn-btn.on { color:var(--blue); background:var(--blue-bg); }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+.user-chip {
+  display:flex; align-items:center; gap:8px; padding:4px 12px 4px 4px;
+  background:var(--ink3); border:1px solid var(--line); border-radius:20px;
+}
+.uc-avatar {
+  width:26px; height:26px; border-radius:50%;
+  background:linear-gradient(135deg,var(--blue-d),var(--purple));
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#fff;
+}
+.uc-name { font-size:12px; font-weight:500; color:var(--t2); }
+.role-tag {
+  padding:2px 7px; border-radius:20px; font-size:10px; font-weight:600;
+  font-family:var(--mono); letter-spacing:.5px;
+}
+.role-tag.admin { background:var(--amber-bg); color:var(--amber); border:1px solid rgba(210,153,34,.3); }
+.role-tag.user  { background:var(--blue-bg);  color:var(--blue);  border:1px solid rgba(88,166,255,.3); }
+.logout-btn {
+  padding:5px 12px; background:transparent; border:1px solid var(--line2);
+  border-radius:var(--r4); color:var(--t3); font-family:var(--hud); font-size:12px;
+  cursor:pointer; transition:.15s;
+}
+.logout-btn:hover { border-color:var(--red); color:var(--red); }
+
+/* ── PAGE LAYOUT ─────────────────────────────────────────────────── */
+.page-wrap { flex:1; padding:24px; max-width:1140px; margin:0 auto; width:100%; }
+.view { display:none; } .view.on { display:block; }
+.page-title { font-size:22px; font-weight:700; color:var(--t1); margin-bottom:6px; }
+.page-sub   { font-size:13px; color:var(--t3); margin-bottom:24px; }
+
+/* ── STAT CARDS ──────────────────────────────────────────────────── */
+.stat-grid { display:grid; gap:12px; margin-bottom:24px; }
+.stat-card {
+  background:var(--ink2); border:1px solid var(--line); border-radius:var(--r6);
+  padding:18px 20px; position:relative; overflow:hidden;
+}
+.stat-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  border-radius:var(--r6) var(--r6) 0 0;
+}
+.sc-blue::after   { background:var(--blue); }
+.sc-green::after  { background:var(--green); }
+.sc-amber::after  { background:var(--amber); }
+.sc-red::after    { background:var(--red); }
+.sc-purple::after { background:var(--purple); }
+.sc-num  { font-size:28px; font-weight:700; color:var(--t1); line-height:1; }
+.sc-label{ font-size:11px; font-weight:500; color:var(--t3); margin-top:5px; text-transform:uppercase; letter-spacing:.8px; }
+.sc-sub  { font-size:12px; color:var(--t2); margin-top:8px; font-family:var(--mono); }
+
+/* ── CARD ────────────────────────────────────────────────────────── */
+.card {
+  background:var(--ink2); border:1px solid var(--line);
+  border-radius:var(--r6); margin-bottom:16px; overflow:hidden;
+}
+.card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--line);
+}
+.card-title { font-size:13px; font-weight:600; color:var(--t2); text-transform:uppercase; letter-spacing:.8px; }
+.card-action{
+  font-size:12px; color:var(--blue); background:var(--blue-bg); border:1px solid rgba(88,166,255,.2);
+  border-radius:var(--r4); padding:4px 10px; cursor:pointer; font-family:var(--hud); font-weight:500; transition:.15s;
+}
+.card-action:hover { background:rgba(88,166,255,.2); }
+
+/* ── TABLE ───────────────────────────────────────────────────────── */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th {
+  padding:10px 14px; text-align:left; font-size:11px; font-weight:600;
+  color:var(--t3); text-transform:uppercase; letter-spacing:.8px;
+  border-bottom:1px solid var(--line); background:rgba(0,0,0,.15); white-space:nowrap;
+}
+td {
+  padding:11px 14px; font-size:13px; color:var(--t2);
+  border-bottom:1px solid rgba(33,38,45,.6); vertical-align:middle;
+}
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(88,166,255,.03); }
+.mono { font-family:var(--mono); font-size:12px; }
+.t-id { color:var(--t3); font-family:var(--mono); font-size:11px; }
+.t-bold { color:var(--t1); font-weight:500; }
+
+/* ── BADGES / CHIPS ──────────────────────────────────────────────── */
+.chip {
+  display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+  border-radius:20px; font-size:11px; font-weight:600; font-family:var(--mono); white-space:nowrap;
+}
+.chip-blue   { background:var(--blue-bg);   color:var(--blue);   border:1px solid rgba(88,166,255,.25); }
+.chip-green  { background:var(--green-bg);  color:var(--green);  border:1px solid rgba(63,185,80,.25); }
+.chip-amber  { background:var(--amber-bg);  color:var(--amber);  border:1px solid rgba(210,153,34,.25); }
+.chip-red    { background:var(--red-bg);    color:var(--red);    border:1px solid rgba(248,81,73,.25); }
+.chip-purple { background:var(--purple-bg); color:var(--purple); border:1px solid rgba(165,166,255,.25); }
+.chip-muted  { background:var(--ink3);      color:var(--t3);     border:1px solid var(--line2); }
+
+.risk-badge {
+  display:inline-block; width:42px; text-align:center;
+  padding:2px 0; border-radius:var(--r4);
+  font-family:var(--mono); font-size:12px; font-weight:600;
+}
+
+/* ── ICON BTN ────────────────────────────────────────────────────── */
+.icon-btn {
+  padding:4px 10px; border-radius:var(--r4); font-size:12px; font-weight:500;
+  cursor:pointer; background:transparent; transition:.15s; border:1px solid;
+}
+.ib-blue  { border-color:rgba(88,166,255,.3); color:var(--blue);  }
+.ib-blue:hover  { background:var(--blue-bg); }
+.ib-red   { border-color:rgba(248,81,73,.3); color:var(--red);   }
+.ib-red:hover   { background:var(--red-bg); }
+.ib-amber { border-color:rgba(210,153,34,.3); color:var(--amber); }
+.ib-amber:hover { background:var(--amber-bg); }
+.ib-muted { border-color:var(--line2); color:var(--t3); }
+.ib-muted:hover { border-color:var(--t2); color:var(--t1); }
+.action-row { display:flex; gap:6px; }
+
+/* ── PAGINATION ──────────────────────────────────────────────────── */
+.pager { display:flex; gap:4px; justify-content:center; padding:14px; }
+.pg-btn {
+  width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+  background:var(--ink3); border:1px solid var(--line2); border-radius:var(--r4);
+  font-size:12px; color:var(--t2); cursor:pointer; transition:.15s; font-family:var(--mono);
+}
+.pg-btn:hover { border-color:var(--blue); color:var(--blue); }
+.pg-btn.on    { background:var(--blue-d); border-color:var(--blue-d); color:#fff; }
+.pg-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+/* ── SEARCH ──────────────────────────────────────────────────────── */
+.toolbar { display:flex; gap:10px; margin-bottom:14px; align-items:center; }
+.search {
+  flex:1; max-width:320px; padding:7px 12px; background:var(--ink3);
+  border:1px solid var(--line2); border-radius:var(--r4); color:var(--t1);
+  font-family:var(--hud); font-size:13px; outline:none; transition:.15s;
+}
+.search:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(88,166,255,.1); }
+.tb-btn {
+  padding:7px 14px; background:var(--ink3); border:1px solid var(--line2);
+  border-radius:var(--r4); color:var(--t2); font-family:var(--hud); font-size:12px;
+  font-weight:500; cursor:pointer; transition:.15s; white-space:nowrap;
+}
+.tb-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+/* ── MODAL ───────────────────────────────────────────────────────── */
+.modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200;
+  display:none; align-items:center; justify-content:center; padding:20px;
+  backdrop-filter:blur(4px);
+}
+.modal-bg.on { display:flex; }
+.modal {
+  background:var(--ink2); border:1px solid var(--line); border-radius:var(--r8);
+  width:min(720px, 100%); max-height:85vh; overflow-y:auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+.modal-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:var(--ink2); z-index:1;
+}
+.modal-title { font-size:15px; font-weight:700; color:var(--t1); }
+.modal-x { background:transparent; border:none; color:var(--t3); cursor:pointer; font-size:20px; line-height:1; padding:2px 6px; border-radius:4px; }
+.modal-x:hover { background:var(--ink3); color:var(--t1); }
+.modal-body { padding:20px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:20px; }
+.dc {
+  background:var(--ink3); border:1px solid var(--line); border-radius:var(--r4);
+  padding:10px 14px;
+}
+.dc-l { font-size:10px; font-weight:600; color:var(--t3); text-transform:uppercase; letter-spacing:.8px; }
+.dc-v { font-size:18px; font-weight:700; color:var(--t1); margin-top:3px; font-family:var(--mono); }
+.sec-label { font-size:11px; font-weight:600; color:var(--t3); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+
+/* ── EVENTS ──────────────────────────────────────────────────────── */
+.ev-list { display:flex; flex-direction:column; gap:0; }
+.ev {
+  display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--line);
+  align-items:flex-start;
+}
+.ev:last-child { border-bottom:none; }
+.ev-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.ev-info   .ev-dot { background:var(--blue); }
+.ev-warn   .ev-dot { background:var(--amber); box-shadow:0 0 5px var(--amber); }
+.ev-danger .ev-dot { background:var(--red);   box-shadow:0 0 5px var(--red); }
+.ev-body { flex:1; min-width:0; }
+.ev-name { font-size:13px; font-weight:500; color:var(--t1); }
+.ev-meta { font-size:11px; color:var(--t3); margin-top:2px; font-family:var(--mono); }
+.ev-pills { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+.ev-pill {
+  font-size:10px; font-family:var(--mono); padding:2px 7px;
+  background:var(--ink3); border:1px solid var(--line2); border-radius:var(--r4); color:var(--t2);
+}
+.ev-pill span { color:var(--t1); }
+
+/* ── EMPTY / LOADING ─────────────────────────────────────────────── */
+.empty { text-align:center; padding:48px 20px; }
+.empty-ico { font-size:32px; margin-bottom:10px; opacity:.5; }
+.empty-txt { font-size:13px; color:var(--t3); font-family:var(--mono); }
+.loading { text-align:center; padding:36px; color:var(--t3); font-family:var(--mono); font-size:13px; }
+
+/* ── TOAST ───────────────────────────────────────────────────────── */
+#toast {
+  position:fixed; bottom:20px; right:20px; z-index:999;
+  padding:10px 16px; border-radius:var(--r4); font-size:13px; font-family:var(--hud);
+  font-weight:500; border:1px solid; opacity:0; transition:opacity .25s;
+  pointer-events:none; box-shadow:var(--shadow);
+}
+#toast.ok  { background:var(--ink2); border-color:rgba(63,185,80,.5);  color:var(--green); }
+#toast.err { background:var(--ink2); border-color:rgba(248,81,73,.5);  color:var(--red); }
+#toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ AUTH VIEW ═══════════════════════════ -->
+<div id="view-auth">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-icon">AI</div>
+      <div>
+        <div class="brand-name">D.I.S.H.A.</div>
+        <div class="brand-sub">LOG REVIEW · DRIVER ANALYTICS</div>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" onclick="switchTab('login')">Sign in</button>
+      <button class="auth-tab"    onclick="switchTab('register')">Register</button>
+    </div>
+    <div class="auth-body">
+      <!-- LOGIN -->
+      <div id="tab-login">
+        <div class="field">
+          <label class="field-label">Username</label>
+          <input class="field-input" id="l-user" type="text" placeholder="Enter username" autocomplete="username">
+        </div>
+        <div class="field">
+          <label class="field-label">Password</label>
+          <input class="field-input" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="auth-btn" onclick="doLogin()">Sign in</button>
+        <div class="auth-error" id="login-err"></div>
+        <div class="auth-hint">Default admin: <b>admin</b> / <b>admin123</b></div>
+      </div>
+      <!-- REGISTER -->
+      <div id="tab-register" style="display:none">
+        <div class="field">
+          <label class="field-label">Username</label>
+          <input class="field-input" id="r-user" type="text" placeholder="Choose a username">
+        </div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input class="field-input" id="r-email" type="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label class="field-label">Password <span style="color:var(--t3)">(min 6 chars)</span></label>
+          <input class="field-input" id="r-pass" type="password" placeholder="••••••••">
+        </div>
+        <button class="auth-btn" onclick="doRegister()">Create account</button>
+        <div class="auth-error" id="reg-err"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ APP VIEW ════════════════════════════ -->
+<div id="view-app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="tb-icon">AI</div>
+      <div class="tb-name">D.I.S.H.A.</div>
+    </div>
+    <nav class="topbar-nav" id="topnav">
+      <button class="tn-btn on" onclick="goto('home')">Overview</button>
+      <button class="tn-btn"    onclick="goto('sessions')">Sessions</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="user-chip">
+        <div class="uc-avatar" id="uc-av">?</div>
+        <span class="uc-name" id="uc-name">—</span>
+        <span class="role-tag" id="uc-role">user</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- PAGES -->
+  <div class="page-wrap">
+
+    <!-- ── HOME / OVERVIEW ───────────────────────────────── -->
+    <div class="view on" id="view-home">
+      <div class="page-title" id="home-title">Overview</div>
+      <div class="page-sub"   id="home-sub">Your driving activity summary</div>
+      <div class="stat-grid" id="stat-grid" style="grid-template-columns:repeat(4,1fr)"></div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Recent Sessions</span>
+          <button class="card-action" onclick="goto('sessions')">View all →</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th id="col-user-home" style="display:none">User</th>
+              <th>Date & Time</th>
+              <th>Duration</th>
+              <th>Alerts</th>
+              <th>Avg Risk</th>
+              <th>Max Risk</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="recent-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SESSIONS ──────────────────────────────────────── -->
+    <div class="view" id="view-sessions">
+      <div class="page-title" id="sess-title">Sessions</div>
+      <div class="page-sub">All recorded driving sessions</div>
+      <div class="toolbar">
+        <input class="search" id="sess-search" placeholder="Filter by date or user…" oninput="filterSess()">
+        <button class="tb-btn" onclick="loadSessions()">↺ Refresh</button>
+        <span id="sess-total" style="font-family:var(--mono);font-size:11px;color:var(--t3);margin-left:auto"></span>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th id="col-user-sess" style="display:none">User</th>
+              <th>Started</th><th>Duration</th>
+              <th>Frames</th><th>Alerts</th><th>Yawns</th>
+              <th>Avg Risk</th><th>Max Risk</th><th></th>
+            </tr></thead>
+            <tbody id="sess-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="sess-pager"></div>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: USERS ───────────────────────────────────── -->
+    <div class="view" id="view-users">
+      <div class="page-title">Users</div>
+      <div class="page-sub">Manage all registered accounts</div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Username</th><th>Email</th>
+              <th>Role</th><th>Sessions</th>
+              <th>Joined</th><th>Last Login</th><th></th>
+            </tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── SESSION DETAIL MODAL ──────────────────────────────────── -->
+<div class="modal-bg" id="sess-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modal-title">Session Detail</span>
+      <button class="modal-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="modal-grid"></div>
+      <div class="sec-label">Events (<span id="modal-ev-count">0</span>)</div>
+      <div class="ev-list" id="modal-ev-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+
+// ── State ────────────────────────────────────────────────────────────
+let token = localStorage.getItem('disha_token') || '';
+let me = null;
+let sessPage = 1, sessAll = [], sessTotal = 0;
+
+// ── AUTH ─────────────────────────────────────────────────────────────
+function switchTab(t) {
+  ['login','register'].forEach((n,i) => {
+    document.querySelectorAll('.auth-tab')[i].classList.toggle('on', n===t);
+    document.getElementById('tab-'+n).style.display = n===t?'block':'none';
+  });
+}
+
+async function doLogin() {
+  const u = document.getElementById('l-user').value.trim();
+  const p = document.getElementById('l-pass').value;
+  document.getElementById('login-err').textContent = '';
+  try {
+    const r = await req('POST','/api/auth/login',{username:u,password:p},false);
+    token = r.token; me = r.user;
+    localStorage.setItem('disha_token', token);
+    bootApp();
+  } catch(e) { document.getElementById('login-err').textContent = e.message; }
+}
+
+async function doRegister() {
+  const u = document.getElementById('r-user').value.trim();
+  const e = document.getElementById('r-email').value.trim();
+  const p = document.getElementById('r-pass').value;
+  document.getElementById('reg-err').textContent = '';
+  try {
+    const r = await req('POST','/api/auth/register',{username:u,email:e,password:p},false);
+    token = r.token; me = r.user;
+    localStorage.setItem('disha_token', token);
+    bootApp();
+  } catch(e) { document.getElementById('reg-err').textContent = e.message; }
+}
+
+function logout() {
+  token=''; me=null;
+  localStorage.removeItem('disha_token');
+  document.getElementById('view-app').style.display  = 'none';
+  document.getElementById('view-auth').style.display = 'flex';
+}
+
+// ── APP BOOT ──────────────────────────────────────────────────────────
+function bootApp() {
+  document.getElementById('view-auth').style.display = 'none';
+  document.getElementById('view-app').style.display  = 'flex';
+
+  // Avatar / name / role
+  document.getElementById('uc-av').textContent   = me.username[0].toUpperCase();
+  document.getElementById('uc-name').textContent = me.username;
+  const rt = document.getElementById('uc-role');
+  rt.textContent = me.role; rt.className = 'role-tag ' + me.role;
+
+  // Admin: add nav tabs + show user column
+  if (me.role === 'admin') {
+    const nav = document.getElementById('topnav');
+    [['users','Users'],['connect','API Docs']].forEach(([id,label]) => {
+      const b = document.createElement('button');
+      b.className='tn-btn'; b.textContent=label; b.onclick=()=>goto(id);
+      nav.appendChild(b);
+    });
+    document.getElementById('col-user-home').style.display = 'table-cell';
+    document.getElementById('col-user-sess').style.display = 'table-cell';
+    document.getElementById('home-title').textContent = 'Global Overview';
+    document.getElementById('home-sub').textContent   = 'All users · all sessions';
+    document.getElementById('sess-title').textContent = 'All Sessions';
+  }
+
+  loadHome();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+function goto(page) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.querySelectorAll('.tn-btn').forEach(b => b.classList.remove('on'));
+  const el = document.getElementById('view-'+page);
+  if (el) el.classList.add('on');
+  document.querySelectorAll('.tn-btn').forEach(b => {
+    if (b.textContent.toLowerCase().replace(/ /g,'') === page.replace(/-/g,'').toLowerCase()
+      || (page==='home'    && b.textContent === 'Overview')
+      || (page==='connect' && b.textContent === 'API Docs')
+    ) b.classList.add('on');
+  });
+  if (page==='home')     loadHome();
+  if (page==='sessions') loadSessions();
+  if (page==='users')    loadUsers();
+  if (page==='connect')  ensureConnectView();
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────
+async function loadHome() {
+  try {
+    const s = await req('GET','/api/stats');
+    const isAdmin = me.role==='admin';
+    const grid = document.getElementById('stat-grid');
+
+    const cards = isAdmin ? [
+      {n: fmt(s.total_users),    l:'Total Users',    c:'sc-blue',   sub:'registered accounts'},
+      {n: fmt(s.total_sessions), l:'Total Sessions', c:'sc-green',  sub:'driving sessions logged'},
+      {n: fmt(s.total_alerts),   l:'Total Alerts',   c:'sc-red',    sub:'drowsiness / phone alerts'},
+      {n: fmtSec(s.total_drive_sec), l:'Drive Time', c:'sc-amber',  sub:'total monitored'},
+    ] : [
+      {n: fmt(s.total_sessions), l:'My Sessions',    c:'sc-blue',   sub:'sessions recorded'},
+      {n: fmt(s.total_alerts),   l:'Total Alerts',   c:'sc-red',    sub:'alerts triggered'},
+      {n: fmt(s.total_yawns),    l:'Total Yawns',    c:'sc-amber',  sub:'yawning events'},
+      {n: fmtSec(s.total_drive_sec), l:'Drive Time', c:'sc-green',  sub:'total monitored'},
+    ];
+
+    grid.innerHTML = cards.map(c =>
+      `<div class="stat-card ${c.c}">
+        <div class="sc-num">${c.n}</div>
+        <div class="sc-label">${c.l}</div>
+        <div class="sc-sub">${c.sub}</div>
+      </div>`
+    ).join('');
+
+    const tbody = document.getElementById('recent-tbody');
+    tbody.innerHTML = '';
+    (s.recent_sessions||[]).forEach(r => {
+      tbody.innerHTML += sessRow(r, isAdmin, true);
+    });
+    if (!s.recent_sessions?.length)
+      tbody.innerHTML = emptyRow(isAdmin?8:7,'No sessions yet — connect D.I.S.H.A. to start logging');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ── SESSIONS ──────────────────────────────────────────────────────────
+async function loadSessions(page=1) {
+  sessPage=page;
+  document.getElementById('sess-tbody').innerHTML = '<tr><td colspan="10" class="loading">Loading…</td></tr>';
+  try {
+    const d = await req('GET',`/api/sessions?page=${page}&limit=20`);
+    sessAll=d.sessions; sessTotal=d.total;
+    document.getElementById('sess-total').textContent = d.total+' total';
+    renderSessions(sessAll);
+    renderPager(d.total, page);
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function filterSess() {
+  const q = document.getElementById('sess-search').value.toLowerCase();
+  const f = sessAll.filter(s =>
+    (s.username||'').toLowerCase().includes(q) ||
+    (s.started_at||'').includes(q)
+  );
+  renderSessions(f);
+}
+
+function renderSessions(list) {
+  const isAdmin = me.role==='admin';
+  const tbody = document.getElementById('sess-tbody');
+  tbody.innerHTML = '';
+  if (!list.length) { tbody.innerHTML = emptyRow(10,'No sessions found'); return; }
+  list.forEach(s => { tbody.innerHTML += sessRow(s, isAdmin, false); });
+}
+
+function sessRow(s, showUser, isHome) {
+  const cols = showUser ? `<td class="t-bold">${s.username||'—'}</td>` : '';
+  const extraCols = isHome ? '' : `<td class="mono">${fmt(s.total_frames||0)}</td>`;
+  return `<tr>
+    <td class="t-id">#${s.id}</td>
+    ${cols}
+    <td class="mono" style="white-space:nowrap">${fmtDate(s.started_at)}</td>
+    <td class="mono">${fmtSec(s.duration_sec)}</td>
+    ${extraCols}
+    <td>${alertChip(s.alert_count||0)}</td>
+    ${isHome?'':`<td><span style="color:var(--blue)">${s.yawn_count||0}</span></td>`}
+    <td>${riskBadge(Math.round(s.avg_risk||0))}</td>
+    <td>${riskBadge(s.max_risk||0)}</td>
+    <td>
+      <div class="action-row">
+        <button class="icon-btn ib-blue" onclick="openSess(${s.id})">View</button>
+        ${me.role==='admin'?`<button class="icon-btn ib-red" onclick="delSess(${s.id})">Del</button>`:''}
+      </div>
+    </td>
+  </tr>`;
+}
+
+function renderPager(total, cur) {
+  const pages = Math.ceil(total/20);
+  const pager = document.getElementById('sess-pager');
+  pager.innerHTML = '';
+  if (pages<=1) return;
+  for (let i=1; i<=Math.min(pages,8); i++) {
+    pager.innerHTML += `<button class="pg-btn ${i===cur?'on':''}" onclick="loadSessions(${i})">${i}</button>`;
+  }
+}
+
+// ── SESSION DETAIL ────────────────────────────────────────────────────
+async function openSess(id) {
+  try {
+    const d = await req('GET',`/api/sessions/${id}`);
+    const s = d.session;
+    document.getElementById('modal-title').textContent = `Session #${s.id}`;
+    document.getElementById('modal-grid').innerHTML = [
+      ['User',         s.username || 'me'],
+      ['Started',      fmtDate(s.started_at)],
+      ['Duration',     fmtSec(s.duration_sec)],
+      ['Frames',       fmt(s.total_frames||0)],
+      ['Alerts',       s.alert_count||0],
+      ['Yawns',        s.yawn_count||0],
+      ['Avg Risk',     (s.avg_risk||0).toFixed(1)],
+      ['Max Risk',     s.max_risk||0],
+      ['Avg EAR',      (s.avg_ear||0).toFixed(4)],
+      ['Avg PERCLOS',  (s.avg_perclos||0).toFixed(1)+'%'],
+      ['Drowsy Events',s.drowsy_events||0],
+      ['Phone Events', s.phone_events||0],
+    ].map(([l,v]) => `<div class="dc"><div class="dc-l">${l}</div><div class="dc-v">${v}</div></div>`).join('');
+
+    const evs = d.events||[];
+    document.getElementById('modal-ev-count').textContent = evs.length;
+    const list = document.getElementById('modal-ev-list');
+    list.innerHTML = '';
+    if (!evs.length) {
+      list.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">No events in this session</div></div>';
+    }
+    evs.forEach(e => {
+      list.innerHTML += `<div class="ev ev-${e.severity}">
+        <div class="ev-dot"></div>
+        <div class="ev-body">
+          <div class="ev-name">${evLabel(e.event_type)}</div>
+          <div class="ev-meta">${fmtDate(e.timestamp)} · ${e.severity.toUpperCase()}</div>
+          <div class="ev-pills">
+            ${e.ear     !=null?`<div class="ev-pill">EAR <span>${(+e.ear).toFixed(3)}</span></div>`:''}
+            ${e.mar     !=null?`<div class="ev-pill">MAR <span>${(+e.mar).toFixed(3)}</span></div>`:''}
+            ${e.risk_score!=null?`<div class="ev-pill">Risk <span>${e.risk_score}</span></div>`:''}
+            ${e.perclos !=null?`<div class="ev-pill">PERCLOS <span>${(+e.perclos).toFixed(1)}%</span></div>`:''}
+            ${e.yaw     !=null?`<div class="ev-pill">Yaw <span>${(+e.yaw).toFixed(0)}°</span></div>`:''}
+            ${e.pitch   !=null?`<div class="ev-pill">Pitch <span>${(+e.pitch).toFixed(0)}°</span></div>`:''}
+          </div>
+        </div>
+      </div>`;
+    });
+    document.getElementById('sess-modal').classList.add('on');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function closeModal() { document.getElementById('sess-modal').classList.remove('on'); }
+document.getElementById('sess-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+async function delSess(id) {
+  if (!confirm(`Delete session #${id} and all its events?`)) return;
+  try {
+    await req('DELETE',`/api/sessions/${id}`);
+    toast('Session deleted','ok');
+    loadSessions(sessPage);
+    loadHome();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ── USERS (admin) ──────────────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading…</td></tr>';
+  try {
+    const users = await req('GET','/api/users');
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      tbody.innerHTML += `<tr>
+        <td class="t-id">#${u.id}</td>
+        <td class="t-bold">${u.username}</td>
+        <td class="mono" style="color:var(--t3)">${u.email}</td>
+        <td><span class="role-tag ${u.role}">${u.role}</span></td>
+        <td><span style="color:var(--blue);font-family:var(--mono)">${u.session_count||0}</span></td>
+        <td class="mono">${fmtDate(u.created_at)}</td>
+        <td class="mono">${u.last_login?fmtDate(u.last_login):'<span style="color:var(--t3)">Never</span>'}</td>
+        <td>
+          ${u.id !== me.id ? `
+          <div class="action-row">
+            <button class="icon-btn ib-blue" onclick="viewUserSess(${u.id},'${u.username}')">Sessions</button>
+            <button class="icon-btn ib-amber" onclick="toggleRole(${u.id},'${u.role}')">${u.role==='admin'?'→ User':'→ Admin'}</button>
+            <button class="icon-btn ib-red" onclick="delUser(${u.id},'${u.username}')">Delete</button>
+          </div>` : '<span style="font-family:var(--mono);font-size:11px;color:var(--t3)">you</span>'}
+        </td>
+      </tr>`;
+    });
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function toggleRole(uid, cur) {
+  const nr = cur==='admin'?'user':'admin';
+  if (!confirm(`Change role to ${nr}?`)) return;
+  try {
+    await req('PATCH',`/api/users/${uid}/role`,{role:nr});
+    toast(`Role changed to ${nr}`,'ok'); loadUsers();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function delUser(uid, name) {
+  if (!confirm(`Delete "${name}" and ALL their data? This cannot be undone.`)) return;
+  try {
+    await req('DELETE',`/api/users/${uid}`);
+    toast('User deleted','ok'); loadUsers(); loadHome();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function viewUserSess(uid, username) {
+  goto('sessions');
+  setTimeout(async () => {
+    try {
+      const d = await req('GET',`/api/users/${uid}`);
+      sessAll = d.sessions||[];
+      renderSessions(sessAll);
+      document.getElementById('sess-title').textContent  = `${username}'s Sessions`;
+      document.getElementById('sess-total').textContent  = sessAll.length+' sessions';
+    } catch(e) {}
+  }, 80);
+}
+
+// ── API DOCS VIEW (dynamic) ───────────────────────────────────────────
+function ensureConnectView() {
+  if (document.getElementById('view-connect')) return;
+  const div = document.createElement('div');
+  div.className='view'; div.id='view-connect';
+  div.innerHTML = `
+    <div class="page-title">API Documentation</div>
+    <div class="page-sub">Integrate D.I.S.H.A. v4.0 with this logging backend</div>
+    <div class="card" style="padding:0">
+      <div class="card-head"><span class="card-title">Quick Start</span></div>
+      <div style="padding:18px 20px">
+        <div style="font-family:var(--mono);font-size:12px;line-height:2;color:var(--t2);background:var(--ink3);border:1px solid var(--line);border-radius:var(--r4);padding:16px">
+          <span style="color:var(--t3)"># Install backend</span><br>
+          pip install fastapi uvicorn asyncpg passlib[bcrypt] python-jose python-dotenv<br><br>
+          <span style="color:var(--t3)"># Create PostgreSQL database</span><br>
+          createdb disha_db<br><br>
+          <span style="color:var(--t3)"># Run backend (port 8000)</span><br>
+          uvicorn main:app --reload --port 8000<br><br>
+          <span style="color:var(--t3)"># Auto-generated API docs</span><br>
+          open http://localhost:8000/docs
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0">
+      <div class="card-head"><span class="card-title">REST Endpoints</span></div>
+      <div style="padding:18px 20px">
+        <div style="font-family:var(--mono);font-size:12px;line-height:2.2;color:var(--t2);background:var(--ink3);border:1px solid var(--line);border-radius:var(--r4);padding:16px">
+          <span style="color:var(--green)">POST</span> /api/auth/login          <span style="color:var(--t3)">{ username, password }</span><br>
+          <span style="color:var(--green)">POST</span> /api/auth/register        <span style="color:var(--t3)">{ username, email, password }</span><br>
+          <span style="color:var(--green)">POST</span> /api/sessions/start        <span style="color:var(--t3)">→ { id: session_id }</span><br>
+          <span style="color:var(--green)">POST</span> /api/sessions/:id/end      <span style="color:var(--t3)">{ total_frames, alert_count, avg_risk… }</span><br>
+          <span style="color:var(--green)">POST</span> /api/events                <span style="color:var(--t3)">{ session_id, event_type, severity, ear, mar… }</span><br>
+          <span style="color:var(--green)">POST</span> /api/events/batch          <span style="color:var(--t3)">{ events: [...] }</span><br>
+          <span style="color:var(--blue)">GET</span>  /api/sessions              <span style="color:var(--t3)">user=own, admin=all</span><br>
+          <span style="color:var(--blue)">GET</span>  /api/sessions/:id          <span style="color:var(--t3)">detail + all events</span><br>
+          <span style="color:var(--blue)">GET</span>  /api/users                 <span style="color:var(--t3)">admin only</span><br>
+          <span style="color:var(--blue)">GET</span>  /api/stats                 <span style="color:var(--t3)">summary (scoped by role)</span><br>
+          <span style="color:var(--red)">PATCH</span> /api/users/:id/role        <span style="color:var(--t3)">admin only</span><br>
+          <span style="color:var(--red)">DELETE</span> /api/sessions/:id         <span style="color:var(--t3)">admin only</span>
+        </div>
+      </div>
+    </div>`;
+  document.querySelector('.page-wrap').appendChild(div);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+async function req(method, path, body=null, auth=true) {
+  const opts = {
+    method,
+    headers: {
+      'Content-Type':'application/json',
+      ...(auth && token ? {'Authorization':'Bearer '+token} : {})
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API+path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+function fmt(n) { return n!=null ? Number(n).toLocaleString() : '0'; }
+function fmtSec(s) {
+  if (!s) return '—';
+  const m=Math.floor(s/60), sec=s%60;
+  return m>0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) + ' · '
+       + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+function evLabel(t) {
+  return {drowsiness:'😴 Drowsiness',yawn:'🥱 Yawn',phone:'📱 Phone Detected',
+          distraction:'👀 Distraction',alert:'⚠️ Alert'}[t] || t;
+}
+function alertChip(n) {
+  if (!n) return `<span style="color:var(--t3);font-family:var(--mono)">0</span>`;
+  const c = n>5?'chip-red':n>2?'chip-amber':'chip-blue';
+  return `<span class="chip ${c}">${n}</span>`;
+}
+function riskBadge(score) {
+  const [bg,col] = score<30 ? ['rgba(63,185,80,.15)','#3fb950']
+                 : score<65 ? ['rgba(210,153,34,.15)','#d29922']
+                 :             ['rgba(248,81,73,.15)', '#f85149'];
+  return `<span class="risk-badge" style="background:${bg};color:${col}">${score}</span>`;
+}
+function emptyRow(cols, msg) {
+  return `<tr><td colspan="${cols}"><div class="empty"><div class="empty-ico">📂</div><div class="empty-txt">${msg}</div></div></td></tr>`;
+}
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── AUTO-LOGIN ────────────────────────────────────────────────────────
+(async () => {
+  if (!token) return;
+  try {
+    me = await req('GET','/api/auth/me');
+    bootApp();
+  } catch {
+    token=''; localStorage.removeItem('disha_token');
+  }
+})();
+</script>
+</body>
+</html>

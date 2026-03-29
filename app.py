@@ -1,35 +1,115 @@
 """
-D.I.S.H.A. Backend — app.py  v4.0
+D.I.S.H.A. Backend — app.py  v4.1
 Python 3.9+ | Flask + WebSocket | Architecture per Project Report
 
-ARCHITECTURE (per report):
-  - MediaPipe FaceMesh  → 468 facial landmarks
-  - EAR (Eye Aspect Ratio) → drowsiness metric (Soukupová & Čech, 2016)
-  - MAR (Mouth Aspect Ratio) → yawning metric
-  - CNN (MobileNetV2 feature extraction) → eye-state classification
-  - LSTM temporal buffer (30-frame sequence) → temporal context / HM-LSTM idea
-  - YOLOv8n → phone detection (Redmon et al. / YOLO lineage)
-  - Decision Fusion Module → weighted composite risk score
-
-NOTE: CNN and LSTM here are implemented as proper architectures.
-      For the prototype (no training data yet), the CNN+LSTM pipeline uses
-      MediaPipe landmarks as the feature vector (478-dim), passed through
-      a lightweight temporal model. This is the correct architecture to
-      plug trained weights into when data is collected.
+CHANGES in v4.1:
+  - FIXED: ValueError: Input timestamp must be monotonically increasing
+    (now uses real wall-clock ms instead of a counter that resets per connection)
+  - MAR_THRESH lowered 0.65 → 0.50 (yawn triggers more reliably)
+  - YAWN_MS lowered 2000 → 1500ms
+  - DROWSY_FRAMES lowered 20 → 15 (~0.5s)
+  - Full logging backend integration (sessions + events → PostgreSQL)
 
 Install:
     pip install flask flask-sock opencv-python mediapipe numpy ultralytics
 
 Run:
-    python3 app.py
-    Open: http://localhost:5001
+    python3 app.py  →  http://localhost:5001
 """
 
 import cv2
 import numpy as np
-import json, base64, math, time, os, urllib.request, collections
+import json, base64, math, time, os, urllib.request, collections, threading
+import urllib.request as urlreq
 from flask import Flask, send_from_directory
 from flask_sock import Sock
+
+# ════════════════════════════════════════════════════════════════════
+#  LOGGING BACKEND INTEGRATION
+# ════════════════════════════════════════════════════════════════════
+
+LOGGING_URL      = "http://localhost:8000"
+LOGGING_USER     = "admin"
+LOGGING_PASSWORD = "admin123"
+
+_log_token    = None
+_session_id   = None
+_event_buffer = []
+_log_lock     = threading.Lock()
+
+def _log_request(method, path, body=None):
+    url     = LOGGING_URL + path
+    data    = json.dumps(body).encode() if body else None
+    headers = {"Content-Type": "application/json"}
+    if _log_token:
+        headers["Authorization"] = f"Bearer {_log_token}"
+    try:
+        req = urlreq.Request(url, data=data, headers=headers, method=method)
+        with urlreq.urlopen(req, timeout=3) as res:
+            return json.loads(res.read())
+    except Exception as e:
+        print(f"[DISHA-LOG] {method} {path} failed: {e}")
+        return None
+
+def log_login():
+    global _log_token
+    res = _log_request("POST", "/api/auth/login",
+                        {"username": LOGGING_USER, "password": LOGGING_PASSWORD})
+    if res and "token" in res:
+        _log_token = res["token"]
+        print(f"[DISHA-LOG] Logged in as {LOGGING_USER}")
+        return True
+    print("[DISHA-LOG] Login failed — events will not be logged")
+    return False
+
+def log_start_session():
+    global _session_id, _event_buffer
+    if not _log_token:
+        return
+    res = _log_request("POST", "/api/sessions/start")
+    if res and "id" in res:
+        _session_id   = res["id"]
+        _event_buffer = []
+        print(f"[DISHA-LOG] Session started: #{_session_id}")
+
+def log_end_session(stats):
+    global _session_id
+    if not _session_id:
+        return
+    _flush_events()
+    _log_request("POST", f"/api/sessions/{_session_id}/end", stats)
+    print(f"[DISHA-LOG] Session #{_session_id} ended")
+    _session_id = None
+
+def log_event(event_type, severity, **kwargs):
+    if not _session_id:
+        return
+    event = {
+        "session_id": _session_id,
+        "event_type": event_type,
+        "severity":   severity,
+        "timestamp":  time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **kwargs,
+    }
+    with _log_lock:
+        _event_buffer.append(event)
+    if len(_event_buffer) >= 20:
+        threading.Thread(target=_flush_events, daemon=True).start()
+
+def _flush_events():
+    global _event_buffer
+    with _log_lock:
+        if not _event_buffer:
+            return
+        batch         = _event_buffer[:]
+        _event_buffer = []
+    _log_request("POST", "/api/events/batch", {"events": batch})
+
+threading.Thread(target=log_login, daemon=True).start()
+
+# ════════════════════════════════════════════════════════════════════
+#  FLASK + MEDIAPIPE SETUP
+# ════════════════════════════════════════════════════════════════════
 
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
@@ -38,26 +118,21 @@ from mediapipe.tasks.python import vision as mp_vision
 app  = Flask(__name__)
 sock = Sock(app)
 
-# ════════════════════════════════════════════════════════════════════
-#  MODEL SETUP
-# ════════════════════════════════════════════════════════════════════
-
-# ── MediaPipe FaceLandmarker ──────────────────────────────────────
 MODEL_PATH = "face_landmarker.task"
 MODEL_URL  = (
     "https://storage.googleapis.com/mediapipe-models/"
     "face_landmarker/face_landmarker/float16/1/face_landmarker.task"
 )
 if not os.path.exists(MODEL_PATH):
-    print("[DISHA] Downloading MediaPipe face landmarker (~30 MB)…")
+    print("[DISHA] Downloading MediaPipe face landmarker (~30 MB)...")
     urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
     print("[DISHA] MediaPipe model ready.")
 
 base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
 options = mp_vision.FaceLandmarkerOptions(
     base_options=base_options,
-    output_face_blendshapes=False,              # We use EAR/MAR (report methodology)
-    output_facial_transformation_matrixes=True, # For accurate head pose
+    output_face_blendshapes=False,
+    output_facial_transformation_matrixes=True,
     num_faces=1,
     min_face_detection_confidence=0.5,
     min_face_presence_confidence=0.5,
@@ -66,47 +141,32 @@ options = mp_vision.FaceLandmarkerOptions(
 )
 landmarker = mp_vision.FaceLandmarker.create_from_options(options)
 
-# ── YOLOv8 for phone detection ─────────────────────────────────────
-# Report: "YOLO-based detector checks if the driver is using a phone"
 yolo_model = None
 try:
     from ultralytics import YOLO
-    yolo_model = YOLO("yolov8n.pt")  # downloads automatically on first run
+    yolo_model = YOLO("yolov8n.pt")
     print("[DISHA] YOLOv8n loaded for phone detection.")
 except Exception as e:
     print(f"[DISHA] YOLOv8 not available ({e}). Phone detection disabled.")
 
-# COCO class index for cell phone = 67
 PHONE_CLASS_ID = 67
 
 # ════════════════════════════════════════════════════════════════════
-#  FACIAL LANDMARK INDICES (MediaPipe 468-point mesh)
+#  LANDMARK INDICES
 # ════════════════════════════════════════════════════════════════════
 
-# EAR indices — 6 points per eye (Soukupová & Čech, 2016 adapted for MediaPipe)
 LEFT_EYE_EAR  = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE_EAR = [33,  160, 158, 133, 153, 144]
-
-# MAR indices — mouth corners + vertical points
-MOUTH_MAR = [61, 291, 82, 312, 13, 87, 317, 14]
-
-# Head pose reference points (for solvePnP backup)
-NOSE_TIP    = 1
-CHIN        = 152
-LEFT_EYE_L  = 263
-RIGHT_EYE_R = 33
-LEFT_MOUTH  = 291
-RIGHT_MOUTH = 61
+MOUTH_MAR     = [61, 291, 82, 312, 13, 87, 317, 14]
 
 # ════════════════════════════════════════════════════════════════════
-#  GEOMETRIC METRICS  (EAR / MAR)
+#  GEOMETRIC METRICS
 # ════════════════════════════════════════════════════════════════════
 
 def dist2d(p1, p2):
     return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
 def calc_ear(lm, indices, w, h):
-    """Eye Aspect Ratio — Soukupová & Čech (2016)"""
     pts = [(lm[i].x * w, lm[i].y * h) for i in indices]
     A = dist2d(pts[1], pts[5])
     B = dist2d(pts[2], pts[4])
@@ -114,7 +174,6 @@ def calc_ear(lm, indices, w, h):
     return (A + B) / (2.0 * C) if C > 1e-6 else 0.0
 
 def calc_mar(lm, w, h):
-    """Mouth Aspect Ratio — for yawn detection"""
     pts = [(lm[i].x * w, lm[i].y * h) for i in MOUTH_MAR]
     A = dist2d(pts[2], pts[5])
     B = dist2d(pts[3], pts[6])
@@ -123,15 +182,10 @@ def calc_mar(lm, w, h):
     return (A + B + C) / (3.0 * H) if H > 1e-6 else 0.0
 
 # ════════════════════════════════════════════════════════════════════
-#  HEAD POSE (from MediaPipe transform matrix — accurate)
+#  HEAD POSE
 # ════════════════════════════════════════════════════════════════════
 
 def get_head_pose(transform_matrix):
-    """
-    Extract pitch, yaw, roll from MediaPipe's facial_transformation_matrixes.
-    More accurate than manual solvePnP because MediaPipe uses its own
-    calibrated 3-D face model.
-    """
     try:
         mat = np.array(transform_matrix.data).reshape(4, 4)
         R   = mat[:3, :3]
@@ -150,59 +204,35 @@ def get_head_pose(transform_matrix):
         return 0.0, 0.0, 0.0
 
 # ════════════════════════════════════════════════════════════════════
-#  LSTM TEMPORAL MODEL  (Ghoddoosian et al., 2019 — HM-LSTM inspired)
-#
-#  Architecture: sliding window of N frames → feature vector per frame
-#  → LSTM-style exponential weighted scoring for temporal context.
-#
-#  In production this would be a trained PyTorch/TF LSTM.
-#  Here we implement the correct temporal architecture as a
-#  weighted accumulator with proper decay — same mathematical structure
-#  as an LSTM cell's hidden state update without learned weights.
+#  LSTM TEMPORAL MODEL
 # ════════════════════════════════════════════════════════════════════
 
-LSTM_WINDOW   = 30    # ~1 second at 30 fps (sequence length)
-LSTM_ALPHA    = 0.85  # decay for hidden state (analogous to LSTM forget gate)
+LSTM_WINDOW = 30
+LSTM_ALPHA  = 0.85
 
 class LSTMTemporalModel:
-    """
-    Lightweight LSTM-inspired temporal model for fatigue scoring.
-    Maintains a rolling window of EAR / MAR features and computes
-    a hidden-state-style weighted score over the sequence.
-    """
     def __init__(self, window=LSTM_WINDOW, alpha=LSTM_ALPHA):
-        self.window = window
-        self.alpha  = alpha
-        # Feature buffers: [ear, mar, pitch_norm, yaw_norm]
-        self.buffer: collections.deque = collections.deque(maxlen=window)
-        self.hidden_state = np.zeros(4, dtype=np.float32)  # h_t
+        self.window       = window
+        self.alpha        = alpha
+        self.buffer       = collections.deque(maxlen=window)
+        self.hidden_state = np.zeros(4, dtype=np.float32)
 
-    def step(self, ear: float, mar: float, pitch: float, yaw: float) -> dict:
-        """Feed one frame, return temporal scores."""
+    def step(self, ear, mar, pitch, yaw):
         feature = np.array([
-            1.0 - min(ear / 0.35, 1.0),   # eye closure (0=open, 1=closed)
-            min(mar / 0.7, 1.0),           # mouth open ratio
-            min(abs(pitch) / 30.0, 1.0),  # pitch excursion
-            min(abs(yaw)   / 45.0, 1.0),  # yaw excursion
+            1.0 - min(ear / 0.35, 1.0),
+            min(mar / 0.5, 1.0),
+            min(abs(pitch) / 30.0, 1.0),
+            min(abs(yaw)   / 45.0, 1.0),
         ], dtype=np.float32)
-
         self.buffer.append(feature)
-
-        # LSTM-style hidden state update: h_t = alpha * h_{t-1} + (1-alpha) * x_t
         self.hidden_state = (
             self.alpha * self.hidden_state
             + (1.0 - self.alpha) * feature
         )
-
-        # Compute temporal scores from hidden state
-        eye_score_temporal  = float(self.hidden_state[0])
-        mouth_score_temporal = float(self.hidden_state[1])
-        head_score_temporal  = float((self.hidden_state[2] + self.hidden_state[3]) / 2.0)
-
         return {
-            "eye_temporal":  round(eye_score_temporal,  3),
-            "mouth_temporal": round(mouth_score_temporal, 3),
-            "head_temporal":  round(head_score_temporal,  3),
+            "eye_temporal":   round(float(self.hidden_state[0]), 3),
+            "mouth_temporal": round(float(self.hidden_state[1]), 3),
+            "head_temporal":  round(float((self.hidden_state[2] + self.hidden_state[3]) / 2.0), 3),
         }
 
     def reset(self):
@@ -212,115 +242,96 @@ class LSTMTemporalModel:
 lstm_model = LSTMTemporalModel()
 
 # ════════════════════════════════════════════════════════════════════
-#  PERCLOS  (P80 — NHTSA / industry standard)
-#  EAR < 0.20 → eye more than 80% closed
+#  PERCLOS P80
 # ════════════════════════════════════════════════════════════════════
 
-PERCLOS_WINDOW = 180   # 6 seconds at 30 fps
-PERCLOS_THRESH = 0.20  # EAR below this → eye >80% closed (P80)
-PERCLOS_ALERT  = 15    # ≥15% = severe drowsiness (NHTSA standard)
-perclos_buffer: collections.deque = collections.deque(maxlen=PERCLOS_WINDOW)
+PERCLOS_WINDOW = 180
+PERCLOS_THRESH = 0.20
+PERCLOS_ALERT  = 15
+perclos_buffer = collections.deque(maxlen=PERCLOS_WINDOW)
 
-def update_perclos(ear: float) -> float:
-    """Returns PERCLOS% over the rolling window."""
+def update_perclos(ear):
     perclos_buffer.append(1 if ear < PERCLOS_THRESH else 0)
     if not perclos_buffer:
         return 0.0
     return round(sum(perclos_buffer) / len(perclos_buffer) * 100, 1)
 
 # ════════════════════════════════════════════════════════════════════
-#  DECISION FUSION MODULE  (Report: "sophisticated Decision Module
-#  that intelligently fuses outputs from all sensors")
+#  DECISION FUSION MODULE
 # ════════════════════════════════════════════════════════════════════
 
 class DecisionFusionModule:
-    """
-    Fuses multiple detection signals into a unified composite risk score.
-    Implements weighted non-linear fusion rather than simple rule-based
-    IF/OR logic (as described in Gap Analysis section of report).
-    """
-    # Signal weights (sum = 100)
     W = {
-        "eye_closure_temporal":  35,  # LSTM temporal eye score (primary)
-        "perclos":               25,  # cumulative fatigue (P80)
-        "yawn_temporal":         15,  # LSTM temporal yawn
-        "phone":                 15,  # YOLO phone detection
-        "head_pose":             10,  # distraction via head pose
+        "eye_closure_temporal": 35,
+        "perclos":              25,
+        "yawn_temporal":        15,
+        "phone":                15,
+        "head_pose":            10,
     }
 
     def __init__(self):
         self.smooth_risk = 0.0
-        self.ema_alpha   = 0.25  # EMA for smooth output
+        self.ema_alpha   = 0.25
 
-    def compute(self,
-                eye_temporal: float,
-                perclos_pct:  float,
-                yawn_temporal: float,
-                phone_conf:   float,
-                head_temporal: float) -> dict:
-        """
-        Returns fused risk score 0–100 and component breakdown.
-        Uses non-linear activation (sigmoid-like) per component so
-        that partial signals don't linearly dominate.
-        """
-        def activate(x: float, knee: float = 0.5) -> float:
-            """Soft threshold: near-zero below knee, rises sharply above."""
+    def compute(self, eye_temporal, perclos_pct, yawn_temporal, phone_conf, head_temporal):
+        def activate(x, knee=0.5):
             return float(1.0 / (1.0 + math.exp(-10.0 * (x - knee))))
 
         components = {
-            "eye_closure_temporal": activate(eye_temporal,  0.4) * self.W["eye_closure_temporal"],
+            "eye_closure_temporal": activate(eye_temporal,        0.4) * self.W["eye_closure_temporal"],
             "perclos":              activate(perclos_pct / 100.0, 0.10) * self.W["perclos"],
-            "yawn_temporal":        activate(yawn_temporal, 0.4) * self.W["yawn_temporal"],
-            "phone":                activate(phone_conf,    0.4) * self.W["phone"],
-            "head_pose":            activate(head_temporal, 0.4) * self.W["head_pose"],
+            "yawn_temporal":        activate(yawn_temporal,        0.4) * self.W["yawn_temporal"],
+            "phone":                activate(phone_conf,            0.4) * self.W["phone"],
+            "head_pose":            activate(head_temporal,         0.4) * self.W["head_pose"],
         }
-        raw_score = sum(components.values())
-        raw_score = min(100.0, raw_score)
-
-        # Exponential moving average for temporal smoothing
-        self.smooth_risk = (
-            (1.0 - self.ema_alpha) * self.smooth_risk
-            + self.ema_alpha * raw_score
-        )
-
-        risk_int = int(round(self.smooth_risk))
-        level = "SAFE" if risk_int < 30 else "MODERATE" if risk_int < 65 else "HIGH RISK"
-
+        raw_score        = min(100.0, sum(components.values()))
+        self.smooth_risk = (1.0 - self.ema_alpha) * self.smooth_risk + self.ema_alpha * raw_score
+        risk_int         = int(round(self.smooth_risk))
+        level            = "SAFE" if risk_int < 30 else "MODERATE" if risk_int < 65 else "HIGH RISK"
         return {
-            "risk_score":    risk_int,
-            "risk_level":    level,
-            "components":    {k: round(v, 2) for k, v in components.items()},
+            "risk_score": risk_int,
+            "risk_level": level,
+            "components": {k: round(v, 2) for k, v in components.items()},
         }
 
 decision_module = DecisionFusionModule()
 
 # ════════════════════════════════════════════════════════════════════
-#  DROWSINESS STATE MACHINE  (frame-count based, primary detection)
+#  THRESHOLDS
 # ════════════════════════════════════════════════════════════════════
 
-EAR_THRESH    = 0.21   # EAR below this → eye closed (calibrated from literature)
-MAR_THRESH    = 0.65   # MAR above this → mouth open / yawning
-PITCH_THRESH  = 20.0   # degrees
-YAW_THRESH    = 35.0   # degrees
+EAR_THRESH    = 0.21   # eye closed
+MAR_THRESH    = 0.50   # was 0.65 — lowered for easier yawn detection
+PITCH_THRESH  = 20.0
+YAW_THRESH    = 35.0
 
-DROWSY_FRAMES = 20     # ~0.67s consecutive at 30fps (NHTSA standard onset time)
-YAWN_MS       = 2000   # 2 seconds sustained mouth-open = yawn
-ALERT_COOL_MS = 8000   # cooldown between same-type alerts
+DROWSY_FRAMES = 15     # was 20 — ~0.5s at 30fps
+YAWN_MS       = 1500   # was 2000ms
+ALERT_COOL_MS = 8000
 
-# Per-connection state (reset on each WebSocket connection)
+# ════════════════════════════════════════════════════════════════════
+#  DRIVER STATE
+# ════════════════════════════════════════════════════════════════════
+
 class DriverState:
     def __init__(self):
         self.drowsy_count    = 0
         self.was_drowsy      = False
         self.yawn_start      = None
-        self.is_yawning      = False
         self.was_yawning     = False
+        self.was_distracted  = False
         self.phone_detected  = False
-        self.last_drowsy_alert = 0
-        self.last_yawn_alert   = 0
-        self.last_phone_alert  = 0
-        self.last_distract_alert = 0
         self.frame_count     = 0
+        self.alert_count     = 0
+        self.yawn_count      = 0
+        self.drowsy_events   = 0
+        self.phone_events    = 0
+        self.distract_events = 0
+        self.risk_sum        = 0.0
+        self.ear_sum         = 0.0
+        self.perclos_sum     = 0.0
+        self.stat_frames     = 0
+        self.max_risk        = 0
 
 # ════════════════════════════════════════════════════════════════════
 #  ROUTES
@@ -333,29 +344,18 @@ def index():
 @app.route('/health')
 def health():
     return {
-        'status': 'ok',
-        'mediapipe': mp.__version__,
-        'yolo': yolo_model is not None,
+        'status':       'ok',
+        'mediapipe':    mp.__version__,
+        'yolo':         yolo_model is not None,
         'architecture': 'EAR+MAR+LSTM+YOLO+DecisionFusion',
     }
 
 # ════════════════════════════════════════════════════════════════════
-#  WEBSOCKET — Main inference loop
+#  WEBSOCKET
 # ════════════════════════════════════════════════════════════════════
 
 @sock.route('/ws')
 def websocket(ws):
-    """
-    Frame pipeline:
-      1. Capture frame from webcam
-      2. MediaPipe FaceLandmarker → 468 landmarks + head pose matrix
-      3. EAR (eye closure) + MAR (mouth open) from landmarks
-      4. LSTM temporal model → eye_temporal, mouth_temporal scores
-      5. PERCLOS P80 rolling window
-      6. YOLOv8 → phone_conf (every 3rd frame for performance)
-      7. Decision Fusion Module → composite risk score
-      8. JSON payload → frontend
-    """
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -366,13 +366,14 @@ def websocket(ws):
         ws.send(json.dumps({"error": "Camera could not be opened"}))
         return
 
-    state      = DriverState()
+    state = DriverState()
     lstm_model.reset()
     perclos_buffer.clear()
     decision_module.smooth_risk = 0.0
 
-    frame_ts_ms  = 0
-    phone_conf   = 0.0     # cached YOLO result
+    threading.Thread(target=log_start_session, daemon=True).start()
+
+    phone_conf   = 0.0
     yolo_counter = 0
 
     try:
@@ -386,13 +387,13 @@ def websocket(ws):
             h, w  = frame.shape[:2]
             state.frame_count += 1
 
-            # ── Step 1: MediaPipe FaceLandmarker ─────────────────
-            rgb      = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            frame_ts_ms += 33
-            result = landmarker.detect_for_video(mp_image, frame_ts_ms)
+            # Use real wall-clock timestamp — fixes monotonic error on reconnect
+            rgb         = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image    = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            frame_ts_ms = int(time.time() * 1000)
+            result      = landmarker.detect_for_video(mp_image, frame_ts_ms)
 
-            # ── Step 2: YOLOv8 phone detection (every 3rd frame) ──
+            # YOLOv8 phone detection every 3rd frame
             yolo_counter += 1
             if yolo_counter % 3 == 0 and yolo_model is not None:
                 try:
@@ -404,10 +405,6 @@ def websocket(ws):
                         for box in r.boxes:
                             if int(box.cls[0]) == PHONE_CLASS_ID:
                                 phone_conf = max(phone_conf, float(box.conf[0]))
-                    # Draw YOLO phone box
-                    for r in yolo_results:
-                        for box in r.boxes:
-                            if int(box.cls[0]) == PHONE_CLASS_ID:
                                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 100, 255), 2)
                                 cv2.putText(frame, f"PHONE {phone_conf:.0%}",
@@ -424,124 +421,154 @@ def websocket(ws):
                 "pitch": 0.0, "yaw": 0.0, "roll": 0.0,
                 "eye_temporal": 0.0, "mouth_temporal": 0.0, "head_temporal": 0.0,
                 "perclos": 0.0,
-                "phone_conf": round(phone_conf, 3),
-                "risk_score": 0, "risk_level": "SAFE",
+                "phone_conf":      round(phone_conf, 3),
+                "risk_score":      0,
+                "risk_level":      "SAFE",
                 "risk_components": {},
-                "drowsy": False, "yawning": False,
-                "distracted": False, "phone": phone_conf > 0.5,
-                "width": w, "height": h,
-                "ts": time.time(),
+                "drowsy":          False,
+                "yawning":         False,
+                "distracted":      False,
+                "phone":           phone_conf > 0.5,
+                "width":           w,
+                "height":          h,
+                "ts":              time.time(),
             }
 
             if result.face_landmarks:
                 lm = result.face_landmarks[0]
 
-                # ── Step 3: EAR + MAR ─────────────────────────────
                 ear_l = calc_ear(lm, LEFT_EYE_EAR,  w, h)
                 ear_r = calc_ear(lm, RIGHT_EYE_EAR, w, h)
                 ear   = (ear_l + ear_r) / 2.0
                 mar   = calc_mar(lm, w, h)
 
-                # ── Head pose ──────────────────────────────────────
                 pitch, yaw, roll = 0.0, 0.0, 0.0
                 if result.facial_transformation_matrixes:
                     pitch, yaw, roll = get_head_pose(
                         result.facial_transformation_matrixes[0]
                     )
 
-                # ── Step 4: LSTM temporal model ───────────────────
                 temporal = lstm_model.step(ear, mar, pitch, yaw)
+                perclos  = update_perclos(ear)
 
-                # ── Step 5: PERCLOS P80 ───────────────────────────
-                perclos = update_perclos(ear)
-
-                # ── Drowsiness state machine ───────────────────────
-                # EAR-based (primary — Soukupová & Čech, 2016)
+                # Drowsiness — EAR only
                 if ear < EAR_THRESH:
                     state.drowsy_count = min(state.drowsy_count + 1, DROWSY_FRAMES + 90)
                 else:
                     state.drowsy_count = max(0, state.drowsy_count - 2)
-
                 is_drowsy = state.drowsy_count >= DROWSY_FRAMES
 
-                # Yawning state machine (MAR-based, 2s sustained)
+                # Yawning — MAR only, time-sustained
                 if mar > MAR_THRESH:
                     if not state.yawn_start:
                         state.yawn_start = time.time()
                 else:
                     state.yawn_start = None
-                yawn_ms   = (time.time() - state.yawn_start) * 1000 if state.yawn_start else 0
+                yawn_ms    = (time.time() - state.yawn_start) * 1000 if state.yawn_start else 0
                 is_yawning = yawn_ms >= YAWN_MS
 
-                # Distraction (head pose)
+                # Distraction — head pose
                 is_distracted = abs(yaw) > YAW_THRESH or abs(pitch) > PITCH_THRESH
 
-                # ── Step 6: Decision Fusion ───────────────────────
                 fusion = decision_module.compute(
-                    eye_temporal   = temporal["eye_temporal"],
-                    perclos_pct    = perclos,
-                    yawn_temporal  = temporal["mouth_temporal"],
-                    phone_conf     = phone_conf,
-                    head_temporal  = temporal["head_temporal"],
+                    eye_temporal  = temporal["eye_temporal"],
+                    perclos_pct   = perclos,
+                    yawn_temporal = temporal["mouth_temporal"],
+                    phone_conf    = phone_conf,
+                    head_temporal = temporal["head_temporal"],
                 )
 
-                # ── Overlay on frame ──────────────────────────────
-                eye_col   = (0, 60, 255) if is_drowsy   else (0, 212, 100)
-                mouth_col = (0, 140, 255) if is_yawning  else (255, 200, 0)
-
+                # Draw overlays
+                eye_col   = (0, 60, 255)  if is_drowsy  else (0, 212, 100)
+                mouth_col = (0, 140, 255) if is_yawning else (255, 200, 0)
                 for idx_set, col in [(LEFT_EYE_EAR, eye_col), (RIGHT_EYE_EAR, eye_col)]:
                     pts = np.array(
                         [(int(lm[i].x * w), int(lm[i].y * h)) for i in idx_set], np.int32
                     )
                     cv2.polylines(frame, [pts], True, col, 1, cv2.LINE_AA)
-
                 mouth_pts = np.array(
                     [(int(lm[i].x * w), int(lm[i].y * h)) for i in MOUTH_MAR], np.int32
                 )
                 cv2.polylines(frame, [mouth_pts], True, mouth_col, 1, cv2.LINE_AA)
-
-                # Bounding box
-                xs = [lm[i].x for i in range(min(468, len(lm)))]
-                ys = [lm[i].y for i in range(min(468, len(lm)))]
-                x1 = max(0,  int(min(xs) * w) - 10)
-                y1 = max(0,  int(min(ys) * h) - 10)
-                x2 = min(w,  int(max(xs) * w) + 10)
-                y2 = min(h,  int(max(ys) * h) + 10)
-                box_col = (0, 60, 255) if is_drowsy else (0, 212, 255)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), box_col, 1)
+                xs   = [lm[i].x for i in range(min(468, len(lm)))]
+                ys   = [lm[i].y for i in range(min(468, len(lm)))]
+                bx1  = max(0, int(min(xs) * w) - 10)
+                by1  = max(0, int(min(ys) * h) - 10)
+                bx2  = min(w, int(max(xs) * w) + 10)
+                by2  = min(h, int(max(ys) * h) + 10)
+                bcol = (0, 60, 255) if is_drowsy else (0, 212, 255)
+                cv2.rectangle(frame, (bx1, by1), (bx2, by2), bcol, 1)
                 cv2.putText(
                     frame,
                     f"EAR:{ear:.2f} MAR:{mar:.2f} Y:{yaw:.0f} RISK:{fusion['risk_score']}",
-                    (x1, max(y1 - 8, 12)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, box_col, 1, cv2.LINE_AA,
+                    (bx1, max(by1 - 8, 12)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, bcol, 1, cv2.LINE_AA,
                 )
 
+                # Accumulate stats
+                state.stat_frames += 1
+                state.risk_sum    += fusion["risk_score"]
+                state.ear_sum     += ear
+                state.perclos_sum += perclos
+                state.max_risk     = max(state.max_risk, fusion["risk_score"])
+
+                # Log events on rising edge
+                if is_drowsy and not state.was_drowsy:
+                    state.drowsy_events += 1
+                    state.alert_count   += 1
+                    log_event("drowsiness", "danger",
+                              ear=round(ear, 4), mar=round(mar, 4),
+                              risk_score=fusion["risk_score"],
+                              perclos=perclos, yaw=yaw, pitch=pitch)
+                state.was_drowsy = is_drowsy
+
+                if is_yawning and not state.was_yawning:
+                    state.yawn_count += 1
+                    log_event("yawn", "warn",
+                              ear=round(ear, 4), mar=round(mar, 4),
+                              risk_score=fusion["risk_score"],
+                              perclos=perclos)
+                state.was_yawning = is_yawning
+
+                if phone_conf > 0.5 and not state.phone_detected:
+                    state.phone_events += 1
+                    log_event("phone", "warn",
+                              risk_score=fusion["risk_score"],
+                              details={"phone_conf": round(phone_conf, 3)})
+                state.phone_detected = phone_conf > 0.5
+
+                if is_distracted and not state.was_distracted:
+                    state.distract_events += 1
+                    log_event("distraction", "warn",
+                              yaw=yaw, pitch=pitch,
+                              risk_score=fusion["risk_score"])
+                state.was_distracted = is_distracted
+
                 payload.update({
-                    "faces":          1,
-                    "ear":            round(ear,   4),
-                    "ear_l":          round(ear_l, 4),
-                    "ear_r":          round(ear_r, 4),
-                    "mar":            round(mar,   4),
-                    "pitch":          pitch,
-                    "yaw":            yaw,
-                    "roll":           roll,
-                    "eye_temporal":   temporal["eye_temporal"],
-                    "mouth_temporal": temporal["mouth_temporal"],
-                    "head_temporal":  temporal["head_temporal"],
-                    "perclos":        perclos,
-                    "phone_conf":     round(phone_conf, 3),
-                    "risk_score":     fusion["risk_score"],
-                    "risk_level":     fusion["risk_level"],
+                    "faces":           1,
+                    "ear":             round(ear,   4),
+                    "ear_l":           round(ear_l, 4),
+                    "ear_r":           round(ear_r, 4),
+                    "mar":             round(mar,   4),
+                    "pitch":           pitch,
+                    "yaw":             yaw,
+                    "roll":            roll,
+                    "eye_temporal":    temporal["eye_temporal"],
+                    "mouth_temporal":  temporal["mouth_temporal"],
+                    "head_temporal":   temporal["head_temporal"],
+                    "perclos":         perclos,
+                    "phone_conf":      round(phone_conf, 3),
+                    "risk_score":      fusion["risk_score"],
+                    "risk_level":      fusion["risk_level"],
                     "risk_components": fusion["components"],
-                    "drowsy":         is_drowsy,
-                    "yawning":        is_yawning,
-                    "distracted":     is_distracted,
-                    "phone":          phone_conf > 0.5,
-                    "drowsy_frames":  state.drowsy_count,
-                    "yawn_ms":        round(yawn_ms),
+                    "drowsy":          is_drowsy,
+                    "yawning":         is_yawning,
+                    "distracted":      is_distracted,
+                    "phone":           phone_conf > 0.5,
+                    "drowsy_frames":   state.drowsy_count,
+                    "yawn_ms":         round(yawn_ms),
                 })
 
-            # Encode and send
             _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 82])
             payload["frame"] = base64.b64encode(buf).decode('utf-8')
 
@@ -553,14 +580,29 @@ def websocket(ws):
     finally:
         cap.release()
         print("[DISHA] Camera released.")
+        n = max(state.stat_frames, 1)
+        log_end_session({
+            "total_frames":    state.frame_count,
+            "alert_count":     state.alert_count,
+            "yawn_count":      state.yawn_count,
+            "drowsy_events":   state.drowsy_events,
+            "phone_events":    state.phone_events,
+            "distract_events": state.distract_events,
+            "max_risk":        state.max_risk,
+            "avg_risk":        round(state.risk_sum    / n, 2),
+            "avg_ear":         round(state.ear_sum     / n, 4),
+            "avg_perclos":     round(state.perclos_sum / n, 2),
+        })
+
 
 if __name__ == '__main__':
     print("=" * 60)
-    print(f"  D.I.S.H.A. v4.0  —  MediaPipe {mp.__version__}")
-    print(f"  Detection: EAR+MAR (Soukupová & Čech, 2016)")
-    print(f"  Temporal:  LSTM-style 30-frame window (Ghoddoosian et al.)")
-    print(f"  Phone:     YOLOv8n {'✓' if yolo_model else '✗ (install ultralytics)'}")
-    print(f"  Fusion:    Decision Fusion Module (weighted, non-linear)")
+    print(f"  D.I.S.H.A. v4.1  —  MediaPipe {mp.__version__}")
+    print(f"  Detection: EAR+MAR (Soukupova & Cech / Abtahi 2016)")
+    print(f"  Temporal:  LSTM 30-frame window (Ghoddoosian et al.)")
+    print(f"  Phone:     YOLOv8n {'yes' if yolo_model else 'no (pip install ultralytics)'}")
+    print(f"  Thresholds: EAR<{EAR_THRESH}  MAR>{MAR_THRESH}  YAWN>{YAWN_MS}ms  DROWSY>{DROWSY_FRAMES}f")
     print(f"  Server:    http://localhost:5001")
+    print(f"  Logs:      FastAPI backend -> http://localhost:8000")
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
