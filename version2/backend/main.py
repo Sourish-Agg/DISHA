@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.database import connect_db, close_db
-from routers import auth, sessions, events, admin, users, analytics
+from routers import auth, sessions, events, admin, users, analytics, phone_detect
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -64,6 +64,7 @@ app.include_router(events.router)
 app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(analytics.router)
+app.include_router(phone_detect.router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

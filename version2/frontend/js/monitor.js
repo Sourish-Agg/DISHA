@@ -47,7 +47,7 @@ const btnCancelStop   = document.getElementById("btnCancelStop");
 let isMonitoring      = false;
 let isCalibrating     = false;
 let faceLandmarker    = null;
-let yoloSession       = null;   // ONNX Runtime session for YOLOv8
+// Phone detection is server-side — no local model state needed
 let frameCount        = 0;
 let currentSessionId  = null;
 let animFrameId       = null;
@@ -79,67 +79,41 @@ async function initModels() {
     numFaces: 1,
   });
 
-  // 2. YOLOv8n via ONNX Runtime Web (WebAssembly)
-  // Uses the public yolov8n model from CDN — ~13 MB, 80-class COCO
-  try {
-    // ort is loaded via script tag in index.html
-    yoloSession = await ort.InferenceSession.create(
-      "https://huggingface.co/onnx-community/yolov8n/resolve/main/onnx/model.onnx",
-      { executionProviders: ["wasm"] }
-    );
-    console.log("[DISHA] YOLOv8n ONNX loaded.");
-  } catch (e) {
-    // YOLOv8 load failure is non-fatal — phone detection just won't run
-    console.warn("[DISHA] YOLOv8 load failed (phone detection disabled):", e.message);
-    yoloSession = null;
-  }
+  // 2. Phone detection is handled server-side via /api/phone/detect
+  // No browser model loading needed — backend runs YOLOv8n.pt (same as version1)
+  console.log("[DISHA] Phone detection: server-side YOLOv8n via /api/phone/detect");
 
   modelsReady = true;
   console.log("[DISHA] All models ready.");
 }
 
-// ── YOLOv8 phone detection ────────────────────────────────────────────────────
-// Runs on every 5th frame. COCO class 67 = "cell phone"
+// ── Server-side YOLOv8 phone detection ───────────────────────────────────────
+// Captures a JPEG frame and sends it to /api/phone/detect (backend runs YOLOv8n.pt)
+// Same approach as version1/app.py — reliable, no browser ONNX needed.
 async function detectPhone() {
-  if (!yoloSession) return;
   try {
-    // Draw video frame to an off-screen 640×640 canvas for YOLO input
-    const sz   = 640;
-    const offsc = document.createElement("canvas");
-    offsc.width = offsc.height = sz;
+    // Capture current video frame to a small canvas
+    const offsc  = document.createElement("canvas");
+    offsc.width  = 320;   // downscale for faster transfer
+    offsc.height = 240;
     const offCtx = offsc.getContext("2d");
-    offCtx.drawImage(video, 0, 0, sz, sz);
-    const imageData = offCtx.getImageData(0, 0, sz, sz).data;
+    offCtx.drawImage(video, 0, 0, 320, 240);
 
-    // Convert RGBA → normalised float32 RGB tensor [1,3,640,640]
-    const tensor = new Float32Array(3 * sz * sz);
-    for (let i = 0; i < sz * sz; i++) {
-      tensor[i]             = imageData[i * 4]     / 255; // R
-      tensor[i + sz * sz]   = imageData[i * 4 + 1] / 255; // G
-      tensor[i + 2*sz * sz] = imageData[i * 4 + 2] / 255; // B
+    // Get base64 JPEG
+    const dataUrl   = offsc.toDataURL("image/jpeg", 0.7);
+    const frame_b64 = dataUrl.split(",")[1];
+
+    const result = await apiFetch("/api/phone/detect", {
+      method: "POST",
+      body:   JSON.stringify({ frame_b64 }),
+    });
+
+    if (result.available) {
+      phoneDetected = result.detected;
     }
-
-    const input  = new ort.Tensor("float32", tensor, [1, 3, sz, sz]);
-    const output = await yoloSession.run({ images: input });
-    const data   = output[Object.keys(output)[0]].data;
-
-    // YOLOv8 output shape: [1, 84, 8400]
-    // cols 0-3: cx,cy,w,h  cols 4-83: class scores
-    // Class 67 = cell phone in COCO
-    const numDetections = 8400;
-    const numClasses    = 80;
-    let found = false;
-    for (let i = 0; i < numDetections; i++) {
-      const scores = Array.from({length: numClasses}, (_, c) =>
-        data[(4 + c) * numDetections + i]
-      );
-      const maxScore = Math.max(...scores);
-      const classId  = scores.indexOf(maxScore);
-      if (classId === 67 && maxScore > 0.50) { found = true; break; }
-    }
-    phoneDetected = found;
+    // If backend doesn't have ultralytics installed, available=false — just skip silently
   } catch (_) {
-    // Inference errors are non-fatal
+    // Non-fatal — phone detection just won't update this frame
   }
 }
 
@@ -234,17 +208,22 @@ async function doStop(notes) {
 
   // End backend session with optional notes
   if (currentSessionId) {
+    const sid = currentSessionId;
+    currentSessionId = null;  // clear immediately so logout/reload doesn't double-end
+
     try {
-      await apiFetch(`/api/sessions/${currentSessionId}/end`, {
-        method: "PATCH",
-        body: JSON.stringify({ notes: notes || null }),
-      });
+      // Only send body if there are actually notes — avoids body parsing edge cases
+      const patchOptions = { method: "PATCH" };
+      if (notes && notes.trim()) {
+        patchOptions.body = JSON.stringify({ notes: notes.trim() });
+      }
+      await apiFetch(`/api/sessions/${sid}/end`, patchOptions);
       // Load and show session summary
-      await showSessionSummary(currentSessionId);
+      await showSessionSummary(sid);
     } catch (e) {
-      console.warn("[DISHA] Session end failed:", e);
+      console.error("[DISHA] Session end failed:", e);
+      showToast("Session saved but summary unavailable: " + e.message, "warning");
     }
-    currentSessionId = null;
   }
 
   // Reset UI

@@ -1,16 +1,39 @@
 // frontend/js/auth.js
-// Handles login and register form submissions.
+// Login and register page logic.
+// 
+// IMPORTANT: We do NOT redirect based on localStorage alone.
+// If a token exists, we VERIFY it with the backend first.
+// This prevents stale/expired tokens from bypassing the login screen.
 
-// If already logged in, redirect based on role immediately
-(function () {
+(async function checkExistingSession() {
   const token = localStorage.getItem("disha_token");
-  const role  = localStorage.getItem("disha_role");
-  if (token) {
-    window.location.replace(role === "admin" ? "admin.html" : "index.html");
+  if (!token) return; // no token — stay on login page
+
+  // Verify token is still valid by calling /api/users/me
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const user = await res.json();
+      // Token is valid — redirect based on actual role from backend
+      window.location.replace(user.role === "admin" ? "admin.html" : "index.html");
+    } else {
+      // Token invalid/expired — clear it and stay on login
+      localStorage.removeItem("disha_token");
+      localStorage.removeItem("disha_role");
+      localStorage.removeItem("disha_name");
+      localStorage.removeItem("disha_user_id");
+    }
+  } catch (_) {
+    // Backend unreachable — clear token, stay on login
+    localStorage.removeItem("disha_token");
+    localStorage.removeItem("disha_role");
+    localStorage.removeItem("disha_name");
+    localStorage.removeItem("disha_user_id");
   }
 })();
 
-// Helper — redirect after successful auth based on role
 function redirectAfterAuth(role) {
   window.location.replace(role === "admin" ? "admin.html" : "index.html");
 }
@@ -34,8 +57,8 @@ if (loginForm) {
       });
       authSave(data);
       redirectAfterAuth(data.role);
-    } catch (e) {
-      showToast(e.message, "error");
+    } catch (err) {
+      showToast(err.message, "error");
       btn.disabled = false;
       btn.textContent = "Sign In";
     }
@@ -71,8 +94,8 @@ if (registerForm) {
       authSave(data);
       showToast("Account created! Welcome to D.I.S.H.A.", "success");
       setTimeout(() => redirectAfterAuth(data.role), 800);
-    } catch (e) {
-      showToast(e.message, "error");
+    } catch (err) {
+      showToast(err.message, "error");
       btn.disabled = false;
       btn.textContent = "Create Account";
     }

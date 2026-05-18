@@ -1,27 +1,18 @@
 # backend/routers/sessions.py
-# Monitoring session lifecycle:
-#   POST   /api/sessions/           → start session
-#   PATCH  /api/sessions/{id}/end   → end session
-#   GET    /api/sessions/           → list own sessions (user) or all (admin)
-#   GET    /api/sessions/{id}       → get single session
-
 import logging
 from datetime import datetime, timezone
-from typing import List
-
+from typing import List, Optional
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
-
+from fastapi import APIRouter, Depends, HTTPException
 from core.database import get_db
-from core.dependencies import get_current_user, require_admin
+from core.dependencies import get_current_user
 from models.schemas import SessionCreateRequest, SessionEndRequest, SessionOut
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
 
 
-def _format_session(doc: dict) -> SessionOut:
-    """Convert a MongoDB session document to the SessionOut schema."""
+def _fmt(doc: dict) -> SessionOut:
     return SessionOut(
         id=str(doc["_id"]),
         user_id=str(doc["user_id"]),
@@ -35,26 +26,26 @@ def _format_session(doc: dict) -> SessionOut:
     )
 
 
-@router.post("/", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SessionOut, status_code=201)
 async def start_session(
     body: SessionCreateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """Create a new monitoring session for the logged-in user."""
     db = get_db()
     doc = {
-        "user_id": ObjectId(current_user["sub"]),
-        "driver_name": body.driver_name or current_user.get("name", "Driver"),
-        "started_at": datetime.now(timezone.utc),
-        "ended_at": None,
+        "user_id":         ObjectId(current_user["sub"]),
+        "driver_name":     body.driver_name or current_user.get("name", "Driver"),
+        "started_at":      datetime.now(timezone.utc),
+        "ended_at":        None,
         "duration_seconds": None,
-        "total_alerts": 0,
-        "max_risk_score": 0.0,
+        "total_alerts":    0,
+        "max_risk_score":  0.0,
+        "notes":           None,
     }
-    result = await db["sessions"].insert_one(doc)
+    result     = await db["sessions"].insert_one(doc)
     doc["_id"] = result.inserted_id
-    logger.info("Session started: %s by user %s", result.inserted_id, current_user["sub"])
-    return _format_session(doc)
+    logger.info("Session started: %s by %s", result.inserted_id, current_user["sub"])
+    return _fmt(doc)
 
 
 @router.patch("/{session_id}/end", response_model=SessionOut)
@@ -63,58 +54,57 @@ async def end_session(
     body: Optional[SessionEndRequest] = None,
     current_user: dict = Depends(get_current_user),
 ):
-    """Mark a session as ended and calculate its duration."""
     db = get_db()
     try:
         oid = ObjectId(session_id)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid session ID.")
+        raise HTTPException(400, "Invalid session ID.")
 
     session = await db["sessions"].find_one({"_id": oid})
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        raise HTTPException(404, "Session not found.")
+    if (current_user["role"] != "admin"
+            and str(session["user_id"]) != current_user["sub"]):
+        raise HTTPException(403, "Not authorised.")
 
-    # Users can only end their own sessions; admins can end any
-    if (
-        current_user["role"] != "admin"
-        and str(session["user_id"]) != current_user["sub"]
-    ):
-        raise HTTPException(status_code=403, detail="Not authorised.")
-
+    # If already ended, just return current state instead of erroring —
+    # this prevents the frontend from getting a 409 and losing the summary
     if session.get("ended_at"):
-        raise HTTPException(status_code=409, detail="Session already ended.")
+        logger.info("Session %s already ended — returning existing record.", session_id)
+        return _fmt(session)
 
     ended_at = datetime.now(timezone.utc)
     duration = (ended_at - session["started_at"]).total_seconds()
 
-    # Count total alerts for this session
     total_alerts = await db["events"].count_documents({"session_id": session_id})
-
-    # Find highest risk score
-    pipeline = [
-        {"$match": {"session_id": session_id}},
-        {"$group": {"_id": None, "max_risk": {"$max": "$risk_score"}}},
-    ]
-    agg = await db["events"].aggregate(pipeline).to_list(1)
+    agg = await db["events"].aggregate([
+        {"$match":  {"session_id": session_id}},
+        {"$group":  {"_id": None, "max_risk": {"$max": "$risk_score"}}},
+    ]).to_list(1)
     max_risk = agg[0]["max_risk"] if agg else 0.0
+
+    notes = (body.notes if body and body.notes else None)
 
     await db["sessions"].update_one(
         {"_id": oid},
         {"$set": {
-            "ended_at": ended_at,
+            "ended_at":        ended_at,
             "duration_seconds": duration,
-            "total_alerts": total_alerts,
-            "max_risk_score": max_risk,
-            "notes": (body.notes if body and body.notes else None),
+            "total_alerts":    total_alerts,
+            "max_risk_score":  max_risk,
+            "notes":           notes,
         }},
     )
-    session.update(
-        ended_at=ended_at,
-        duration_seconds=duration,
-        total_alerts=total_alerts,
-        max_risk_score=max_risk,
-    )
-    return _format_session(session)
+
+    # Build updated doc for response
+    session["ended_at"]         = ended_at
+    session["duration_seconds"] = duration
+    session["total_alerts"]     = total_alerts
+    session["max_risk_score"]   = max_risk
+    session["notes"]            = notes
+
+    logger.info("Session ended: %s duration=%.0fs alerts=%d", session_id, duration, total_alerts)
+    return _fmt(session)
 
 
 @router.get("/", response_model=List[SessionOut])
@@ -122,15 +112,11 @@ async def list_sessions(
     current_user: dict = Depends(get_current_user),
     limit: int = 50,
 ):
-    """
-    Users see only their own sessions.
-    Admins see all sessions.
-    """
-    db = get_db()
-    query = {} if current_user["role"] == "admin" else {"user_id": ObjectId(current_user["sub"])}
-    cursor = db["sessions"].find(query).sort("started_at", -1).limit(limit)
-    docs = await cursor.to_list(limit)
-    return [_format_session(d) for d in docs]
+    db    = get_db()
+    query = {} if current_user["role"] == "admin" \
+            else {"user_id": ObjectId(current_user["sub"])}
+    docs  = await db["sessions"].find(query).sort("started_at", -1).limit(limit).to_list(limit)
+    return [_fmt(d) for d in docs]
 
 
 @router.get("/{session_id}", response_model=SessionOut)
@@ -138,21 +124,15 @@ async def get_session(
     session_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """Get a single session by ID."""
     db = get_db()
     try:
         oid = ObjectId(session_id)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid session ID.")
-
+        raise HTTPException(400, "Invalid session ID.")
     session = await db["sessions"].find_one({"_id": oid})
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
-
-    if (
-        current_user["role"] != "admin"
-        and str(session["user_id"]) != current_user["sub"]
-    ):
-        raise HTTPException(status_code=403, detail="Not authorised.")
-
-    return _format_session(session)
+        raise HTTPException(404, "Session not found.")
+    if (current_user["role"] != "admin"
+            and str(session["user_id"]) != current_user["sub"]):
+        raise HTTPException(403, "Not authorised.")
+    return _fmt(session)

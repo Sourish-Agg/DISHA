@@ -155,3 +155,41 @@ async def delete_user(user_id: str, admin=Depends(require_admin)):
     await db["users"].delete_one({"_id": oid})
 
     logger.info("Admin %s deleted user %s and %d sessions", admin["email"], user_id, len(session_ids))
+
+@router.post("/cleanup-sessions")
+async def cleanup_stuck_sessions(_admin=Depends(require_admin)):
+    """
+    Mark all sessions with no ended_at as ended.
+    Useful for fixing sessions that got stuck due to browser close / network error.
+    Sessions are ended with duration calculated from started_at to now.
+    """
+    from datetime import datetime, timezone
+    db  = get_db()
+    now = datetime.now(timezone.utc)
+
+    stuck = await db["sessions"].find({"ended_at": None}).to_list(1000)
+    fixed = 0
+    for s in stuck:
+        sid      = str(s["_id"])
+        duration = (now - s["started_at"]).total_seconds()
+        total_alerts = await db["events"].count_documents({"session_id": sid})
+        agg = await db["events"].aggregate([
+            {"$match": {"session_id": sid}},
+            {"$group": {"_id": None, "max_risk": {"$max": "$risk_score"}}},
+        ]).to_list(1)
+        max_risk = agg[0]["max_risk"] if agg else 0.0
+
+        await db["sessions"].update_one(
+            {"_id": s["_id"]},
+            {"$set": {
+                "ended_at":        now,
+                "duration_seconds": duration,
+                "total_alerts":    total_alerts,
+                "max_risk_score":  max_risk,
+                "notes":           "Auto-closed by admin cleanup",
+            }}
+        )
+        fixed += 1
+
+    logger.info("Admin cleanup: fixed %d stuck sessions", fixed)
+    return {"fixed": fixed, "message": f"Closed {fixed} stuck session(s)."}
