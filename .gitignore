@@ -10,3 +10,13 @@ wheels/
 .venv
 .env
 
+venv/
+.venv/
+env/
+*.pt
+*.onnx
+face_landmarker.task
+__pycache__/
+*.pyc
+*.pyo
+.env
