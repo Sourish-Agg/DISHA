@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from core.database import get_db
 from core.dependencies import get_current_user, require_admin
-from models.schemas import SessionCreateRequest, SessionOut
+from models.schemas import SessionCreateRequest, SessionEndRequest, SessionOut
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def _format_session(doc: dict) -> SessionOut:
         duration_seconds=doc.get("duration_seconds"),
         total_alerts=doc.get("total_alerts", 0),
         max_risk_score=doc.get("max_risk_score", 0.0),
+        notes=doc.get("notes"),
     )
 
 
@@ -59,6 +60,7 @@ async def start_session(
 @router.patch("/{session_id}/end", response_model=SessionOut)
 async def end_session(
     session_id: str,
+    body: Optional[SessionEndRequest] = None,
     current_user: dict = Depends(get_current_user),
 ):
     """Mark a session as ended and calculate its duration."""
@@ -103,6 +105,7 @@ async def end_session(
             "duration_seconds": duration,
             "total_alerts": total_alerts,
             "max_risk_score": max_risk,
+            "notes": (body.notes if body and body.notes else None),
         }},
     )
     session.update(

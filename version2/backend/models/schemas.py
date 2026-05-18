@@ -84,6 +84,10 @@ class SessionCreateRequest(BaseModel):
     """Frontend sends this to start a monitoring session."""
     driver_name: Optional[str] = None     # optional label for the session
 
+class SessionEndRequest(BaseModel):
+    """Optionally send notes when ending a session."""
+    notes: Optional[str] = Field(None, max_length=300)
+
 
 class SessionOut(BaseModel):
     id: str
@@ -94,6 +98,7 @@ class SessionOut(BaseModel):
     duration_seconds: Optional[float]
     total_alerts: int
     max_risk_score: float
+    notes: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

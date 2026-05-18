@@ -1,85 +1,155 @@
-// frontend/js/monitor.js
-// Orchestrates the monitoring page:
-//   1. Camera access via getUserMedia
-//   2. MediaPipe FaceLandmarker (478 points) for EAR / MAR / head pose
-//   3. TensorFlow.js COCO-SSD for phone detection (every 3rd frame)
-//   4. Calls detection.js processFrame() each frame
-//   5. Updates all UI gauges and badges
-//   6. Logs alerts to the backend via api.js
+// frontend/js/monitor.js — v4
+// Full monitor page orchestrator:
+//  • 3-phase flow: CALIBRATION → MONITORING → SESSION SUMMARY
+//  • Confidence gating: face-lost state pauses PERCLOS
+//  • YOLOv8-ONNX phone detection (every 5th frame)
+//  • Fullscreen toggle
+//  • Session notes on stop
+//  • Correct local timestamps
 
-requireUser();  // no token → login.html, admin → admin.html
+requireUser();
 
-// ── DOM references ────────────────────────────────────────────────────────────
-const video          = document.getElementById("video");
-const canvas         = document.getElementById("canvas");
-const ctx            = canvas.getContext("2d");
-const placeholder    = document.getElementById("placeholder");
-const badgeStatus    = document.getElementById("badgeStatus");
-const badgeLive      = document.getElementById("badgeLive");
-const btnStart       = document.getElementById("btnStart");
-const btnStop        = document.getElementById("btnStop");
-const sessionLabel   = document.getElementById("sessionLabel");
-const riskCircle     = document.getElementById("riskCircle");
-const riskValue      = document.getElementById("riskValue");
-const earValue       = document.getElementById("earValue");
-const earGauge       = document.getElementById("earGauge");
-const marValue       = document.getElementById("marValue");
-const marGauge       = document.getElementById("marGauge");
-const perclosValue   = document.getElementById("perclosValue");
-const perclosGauge   = document.getElementById("perclosGauge");
-const yawValue       = document.getElementById("yawValue");
-const pitchValue     = document.getElementById("pitchValue");
-const poseStatus     = document.getElementById("poseStatus");
-const phoneStatus    = document.getElementById("phoneStatus");
-const alertLog       = document.getElementById("alertLog");
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const video           = document.getElementById("video");
+const canvas          = document.getElementById("canvas");
+const ctx             = canvas.getContext("2d");
+const placeholder     = document.getElementById("placeholder");
+const calibOverlay    = document.getElementById("calibOverlay");
+const calibProgress   = document.getElementById("calibProgress");
+const calibMsg        = document.getElementById("calibMsg");
+const badgeStatus     = document.getElementById("badgeStatus");
+const badgeLive       = document.getElementById("badgeLive");
+const badgeLowLight   = document.getElementById("badgeLowLight");
+const btnStart        = document.getElementById("btnStart");
+const btnStop         = document.getElementById("btnStop");
+const btnFullscreen   = document.getElementById("btnFullscreen");
+const sessionLabel    = document.getElementById("sessionLabel");
+const riskCircle      = document.getElementById("riskCircle");
+const riskValue       = document.getElementById("riskValue");
+const eyeStatusEl     = document.getElementById("eyeStatus");
+const eyeGauge        = document.getElementById("eyeGauge");
+const perclosValue    = document.getElementById("perclosValue");
+const perclosGauge    = document.getElementById("perclosGauge");
+const yawnStatusEl    = document.getElementById("yawnStatus");
+const yawnGauge       = document.getElementById("yawnGauge");
+const yawValue        = document.getElementById("yawValue");
+const poseStatus      = document.getElementById("poseStatus");
+const phoneStatus     = document.getElementById("phoneStatus");
+const faceStatus      = document.getElementById("faceStatus");
+const alertLog        = document.getElementById("alertLog");
+const summaryModal    = document.getElementById("summaryModal");
+const notesModal      = document.getElementById("notesModal");
+const notesInput      = document.getElementById("notesInput");
+const btnConfirmStop  = document.getElementById("btnConfirmStop");
+const btnCancelStop   = document.getElementById("btnCancelStop");
 
-// ── Runtime state ─────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 let isMonitoring      = false;
-let faceLandmarker    = null;   // MediaPipe FaceLandmarker instance
-let cocoModel         = null;   // TF.js COCO-SSD model
-let frameCount        = 0;      // total frames processed
-let currentSessionId  = null;   // backend session ID
-let animFrameId       = null;   // requestAnimationFrame handle
-let phoneDetected     = false;  // result from last COCO-SSD pass
-let stream            = null;   // MediaStream
+let isCalibrating     = false;
+let faceLandmarker    = null;
+let yoloSession       = null;   // ONNX Runtime session for YOLOv8
+let frameCount        = 0;
+let currentSessionId  = null;
+let animFrameId       = null;
+let stream            = null;
+let modelsReady       = false;
+let phoneDetected     = false;
+let faceLostFrames    = 0;      // consecutive frames with no face
+const FACE_LOST_THRESHOLD = 15; // frames before "face lost" state
 
-// ── Initialise ML models ──────────────────────────────────────────────────────
+// ── Model loading ─────────────────────────────────────────────────────────────
 async function initModels() {
-  // Load MediaPipe FaceLandmarker
-  // Using CDN task-vision package
+  if (modelsReady) return;
+
+  // 1. MediaPipe FaceLandmarker
   const { FaceLandmarker, FilesetResolver } = await import(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"
   );
-
   const filesetResolver = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
   );
-
   faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
     baseOptions: {
       modelAssetPath:
         "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-      delegate: "GPU",  // falls back to CPU automatically if GPU unavailable
+      delegate: "GPU",
     },
     outputFaceBlendshapes: false,
     runningMode: "VIDEO",
-    numFaces: 1,  // single driver
+    numFaces: 1,
   });
 
-  // Load TF.js COCO-SSD for phone detection
-  // cocoSsd is loaded via <script> tag (see monitor.html)
-  cocoModel = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+  // 2. YOLOv8n via ONNX Runtime Web (WebAssembly)
+  // Uses the public yolov8n model from CDN — ~13 MB, 80-class COCO
+  try {
+    // ort is loaded via script tag in index.html
+    yoloSession = await ort.InferenceSession.create(
+      "https://huggingface.co/onnx-community/yolov8n/resolve/main/onnx/model.onnx",
+      { executionProviders: ["wasm"] }
+    );
+    console.log("[DISHA] YOLOv8n ONNX loaded.");
+  } catch (e) {
+    // YOLOv8 load failure is non-fatal — phone detection just won't run
+    console.warn("[DISHA] YOLOv8 load failed (phone detection disabled):", e.message);
+    yoloSession = null;
+  }
 
-  console.log("[DISHA] Models loaded.");
+  modelsReady = true;
+  console.log("[DISHA] All models ready.");
 }
 
-// ── Start monitoring ──────────────────────────────────────────────────────────
+// ── YOLOv8 phone detection ────────────────────────────────────────────────────
+// Runs on every 5th frame. COCO class 67 = "cell phone"
+async function detectPhone() {
+  if (!yoloSession) return;
+  try {
+    // Draw video frame to an off-screen 640×640 canvas for YOLO input
+    const sz   = 640;
+    const offsc = document.createElement("canvas");
+    offsc.width = offsc.height = sz;
+    const offCtx = offsc.getContext("2d");
+    offCtx.drawImage(video, 0, 0, sz, sz);
+    const imageData = offCtx.getImageData(0, 0, sz, sz).data;
+
+    // Convert RGBA → normalised float32 RGB tensor [1,3,640,640]
+    const tensor = new Float32Array(3 * sz * sz);
+    for (let i = 0; i < sz * sz; i++) {
+      tensor[i]             = imageData[i * 4]     / 255; // R
+      tensor[i + sz * sz]   = imageData[i * 4 + 1] / 255; // G
+      tensor[i + 2*sz * sz] = imageData[i * 4 + 2] / 255; // B
+    }
+
+    const input  = new ort.Tensor("float32", tensor, [1, 3, sz, sz]);
+    const output = await yoloSession.run({ images: input });
+    const data   = output[Object.keys(output)[0]].data;
+
+    // YOLOv8 output shape: [1, 84, 8400]
+    // cols 0-3: cx,cy,w,h  cols 4-83: class scores
+    // Class 67 = cell phone in COCO
+    const numDetections = 8400;
+    const numClasses    = 80;
+    let found = false;
+    for (let i = 0; i < numDetections; i++) {
+      const scores = Array.from({length: numClasses}, (_, c) =>
+        data[(4 + c) * numDetections + i]
+      );
+      const maxScore = Math.max(...scores);
+      const classId  = scores.indexOf(maxScore);
+      if (classId === 67 && maxScore > 0.50) { found = true; break; }
+    }
+    phoneDetected = found;
+  } catch (_) {
+    // Inference errors are non-fatal
+  }
+}
+
+// ── Start flow ────────────────────────────────────────────────────────────────
 async function startMonitoring() {
-  btnStart.disabled = true;
+  btnStart.disabled    = true;
   btnStart.textContent = "Starting…";
 
   try {
-    // 1. Request camera access
+    // Camera
     stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 640, height: 480, facingMode: "user" },
       audio: false,
@@ -87,380 +157,489 @@ async function startMonitoring() {
     video.srcObject = stream;
     await video.play();
 
-    // 2. Load models if not already loaded
-    if (!faceLandmarker || !cocoModel) {
+    // Models
+    if (!modelsReady) {
+      btnStart.textContent = "Loading AI models…";
       await initModels();
     }
 
-    // 3. Start a backend session
-    const user = getAuthUser();
+    // Start backend session
+    const user    = getAuthUser();
     const session = await apiFetch("/api/sessions/", {
       method: "POST",
       body: JSON.stringify({ driver_name: user.name }),
     });
     currentSessionId = session.id;
 
-    // 4. Update UI
+    // Reset state
+    resetCalibration();
+    frameCount    = 0;
+    faceLostFrames = 0;
+    phoneDetected  = false;
+
+    // Show UI
     placeholder.classList.add("hidden");
     badgeLive.classList.remove("hidden");
     btnStart.classList.add("hidden");
     btnStop.disabled = false;
     btnStop.classList.remove("hidden");
-    sessionLabel.textContent = `Session ID: ${currentSessionId.slice(-8)}`;
+    sessionLabel.textContent = `Session: ${currentSessionId.slice(-8).toUpperCase()}`;
 
-    isMonitoring = true;
-    resetDetectionState();
-
-    // 5. Kick off the frame loop
+    // Start calibration phase
+    isCalibrating = true;
+    isMonitoring  = true;
+    showCalibOverlay(0);
     processLoop();
 
   } catch (err) {
     console.error("[DISHA] Start error:", err);
     showToast(err.message || "Could not start monitoring.", "error");
-    btnStart.disabled = false;
-    btnStart.textContent = "Start Monitoring";
+    btnStart.disabled    = false;
+    btnStart.textContent = "▶ Start Monitoring";
   }
 }
 
-// ── Stop monitoring ───────────────────────────────────────────────────────────
-async function stopMonitoring() {
-  isMonitoring = false;
+// ── Calibration overlay ───────────────────────────────────────────────────────
+function showCalibOverlay(pct) {
+  calibOverlay.classList.remove("hidden");
+  calibProgress.style.width = `${pct}%`;
+  if (pct < 30)
+    calibMsg.textContent = "Look straight at the camera, relax your face…";
+  else if (pct < 70)
+    calibMsg.textContent = "Keep still — measuring your face baseline…";
+  else
+    calibMsg.textContent = "Almost done…";
+}
 
-  if (animFrameId) {
-    cancelAnimationFrame(animFrameId);
-    animFrameId = null;
-  }
+function hideCalibOverlay() {
+  calibOverlay.classList.add("hidden");
+  showToast("Calibration complete — monitoring started.", "success");
+}
 
-  // Stop camera stream
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-  }
+// ── Stop → notes modal ────────────────────────────────────────────────────────
+function requestStop() {
+  // Show notes modal before actually stopping
+  notesInput.value = "";
+  notesModal.classList.remove("hidden");
+  notesInput.focus();
+}
 
-  // End backend session
+async function doStop(notes) {
+  notesModal.classList.add("hidden");
+  isMonitoring  = false;
+  isCalibrating = false;
+  cancelAnimationFrame(animFrameId);
+  stream && stream.getTracks().forEach(t => t.stop());
+  stream = null;
+
+  // End backend session with optional notes
   if (currentSessionId) {
     try {
-      await apiFetch(`/api/sessions/${currentSessionId}/end`, { method: "PATCH" });
+      await apiFetch(`/api/sessions/${currentSessionId}/end`, {
+        method: "PATCH",
+        body: JSON.stringify({ notes: notes || null }),
+      });
+      // Load and show session summary
+      await showSessionSummary(currentSessionId);
     } catch (e) {
-      console.warn("[DISHA] Could not end session:", e);
+      console.warn("[DISHA] Session end failed:", e);
     }
     currentSessionId = null;
   }
 
   // Reset UI
   placeholder.classList.remove("hidden");
+  calibOverlay.classList.add("hidden");
   badgeLive.classList.add("hidden");
+  badgeLowLight.classList.add("hidden");
   btnStop.classList.add("hidden");
   btnStart.classList.remove("hidden");
-  btnStart.disabled = false;
-  btnStart.textContent = "Start Monitoring";
+  btnStart.disabled    = false;
+  btnStart.textContent = "▶ Start Monitoring";
   sessionLabel.textContent = "";
-  updateStatusBadge(0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  showToast("Monitoring stopped.", "info");
+  updateStatusBadge(0);
 }
 
-// ── Main frame loop ───────────────────────────────────────────────────────────
+btnStop.addEventListener("click", requestStop);
+btnConfirmStop.addEventListener("click", () => doStop(notesInput.value.trim()));
+btnCancelStop.addEventListener("click", () => {
+  notesModal.classList.add("hidden");
+  // Resume monitoring — user changed their mind
+});
+
+// ── Session summary modal ─────────────────────────────────────────────────────
+async function showSessionSummary(sessionId) {
+  try {
+    const s = await apiFetch(`/api/analytics/summary/${sessionId}`);
+    renderSummary(s);
+    summaryModal.classList.remove("hidden");
+  } catch (e) {
+    console.warn("[DISHA] Summary load failed:", e);
+  }
+}
+
+function renderSummary(s) {
+  const dur = s.duration_seconds
+    ? (s.duration_seconds >= 60
+        ? `${Math.floor(s.duration_seconds/60)}m ${Math.floor(s.duration_seconds%60)}s`
+        : `${Math.floor(s.duration_seconds)}s`)
+    : "—";
+
+  const risk     = Math.round(s.max_risk_score || 0);
+  const riskCls  = risk < 30 ? "safe" : risk < 70 ? "warn" : "danger";
+
+  const typeLabels = {
+    drowsy_eyes:"😴 Drowsy Eyes", yawning:"🥱 Yawning",
+    phone_detected:"📱 Phone", head_distraction:"↩️ Distraction", high_risk:"🔴 High Risk"
+  };
+
+  const breakdownHtml = Object.entries(s.breakdown || {}).map(([t, c]) =>
+    `<div class="alert-entry ${t}" style="justify-content:space-between">
+      <span class="alert-msg">${typeLabels[t]||t}</span>
+      <strong>${c}</strong>
+    </div>`
+  ).join("") || '<p style="color:var(--muted);font-size:.82rem">No alerts.</p>';
+
+  // Risk timeline sparkline (simple SVG)
+  const sparkSvg = buildSparkline(s.timeline || []);
+
+  const peakHtml = s.peak
+    ? `<p style="font-size:.8rem;color:var(--muted);margin-top:.5rem">
+         Peak: <strong style="color:var(--danger)">${s.peak.risk}%</strong> risk
+         at ${new Date(s.peak.timestamp).toLocaleTimeString()}
+         (${typeLabels[s.peak.type]||s.peak.type})
+       </p>`
+    : "";
+
+  document.getElementById("summaryContent").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:1.2rem">
+      <div class="kpi-mini"><div class="kpi-lbl">Duration</div><div class="kpi-big">${dur}</div></div>
+      <div class="kpi-mini"><div class="kpi-lbl">Total Alerts</div><div class="kpi-big">${s.total_alerts}</div></div>
+      <div class="kpi-mini"><div class="kpi-lbl">Max Risk</div>
+        <div class="kpi-big" style="color:var(--${riskCls})">${risk}%</div></div>
+    </div>
+    ${s.notes ? `<p style="font-size:.82rem;color:var(--muted);margin-bottom:.8rem">📝 ${s.notes}</p>` : ""}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+      <div>
+        <div class="card-title">Alert Breakdown</div>
+        ${breakdownHtml}
+      </div>
+      <div>
+        <div class="card-title">Risk Over Time</div>
+        ${sparkSvg}
+        ${peakHtml}
+      </div>
+    </div>`;
+}
+
+function buildSparkline(timeline) {
+  if (!timeline.length) return '<p style="color:var(--muted);font-size:.8rem">No data.</p>';
+  const W = 220, H = 80, pad = 6;
+  const max = Math.max(...timeline.map(p => p.r), 1);
+  const pts = timeline.map((p, i) => {
+    const x = pad + (i / Math.max(timeline.length - 1, 1)) * (W - pad*2);
+    const y = H - pad - (p.r / max) * (H - pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:80px">
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <!-- 70% danger line -->
+    <line x1="${pad}" y1="${(H - pad - (70/max)*(H-pad*2)).toFixed(1)}"
+          x2="${W-pad}" y2="${(H - pad - (70/max)*(H-pad*2)).toFixed(1)}"
+          stroke="var(--danger)" stroke-dasharray="3,3" stroke-width="1"/>
+  </svg>`;
+}
+
+document.getElementById("btnCloseSummary")?.addEventListener("click", () => {
+  summaryModal.classList.add("hidden");
+});
+
+// ── Frame loop ────────────────────────────────────────────────────────────────
 function processLoop() {
   if (!isMonitoring) return;
 
   const now = performance.now();
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
 
-  // Resize canvas to match video
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  let result = { faceDetected: false };
-
-  if (
-    video.readyState === HTMLMediaElement.HAVE_ENOUGH_DATA &&
-    faceLandmarker
-  ) {
-    // Run FaceLandmarker
+  if (video.readyState === HTMLMediaElement.HAVE_ENOUGH_DATA && faceLandmarker) {
     const faceResult = faceLandmarker.detectForVideo(video, now);
+    const landmarks  = faceResult.faceLandmarks?.[0] ?? null;
 
-    // Phone detection: run on every 3rd frame to save CPU
-    if (frameCount % 3 === 0 && cocoModel) {
-      cocoModel.detect(video).then(predictions => {
-        // Check if any "cell phone" class is detected with reasonable confidence
-        phoneDetected = predictions.some(
-          p => p.class === "cell phone" && p.score > 0.45
-        );
-      });
-    }
+    // ── Confidence gating ──────────────────────────────────────────────────
+    if (!landmarks) {
+      faceLostFrames++;
+      if (faceLostFrames >= FACE_LOST_THRESHOLD) {
+        updateFaceStatus(false);
+        // Don't call processFrame — PERCLOS is NOT updated during face-lost
+      }
+    } else {
+      faceLostFrames = 0;
+      updateFaceStatus(true);
 
-    if (faceResult.faceLandmarks && faceResult.faceLandmarks.length > 0) {
-      const landmarks = faceResult.faceLandmarks[0];
+      // ── Calibration phase ────────────────────────────────────────────────
+      if (isCalibrating) {
+        const { done, progress } = calibrationStep(landmarks);
+        showCalibOverlay(progress);
+        if (done) {
+          isCalibrating = false;
+          hideCalibOverlay();
+        }
+        // Still draw overlay during calibration
+        drawCalibOverlay(ctx, landmarks);
+      } else {
+        // ── Phone detection every 5th frame ─────────────────────────────
+        if (frameCount % 5 === 0) detectPhone();
 
-      // Run our detection logic
-      result = processFrame(landmarks, phoneDetected);
+        // ── Main detection ───────────────────────────────────────────────
+        const result = processFrame(landmarks, phoneDetected, video, frameCount);
+        drawOverlay(ctx, landmarks, result);
+        updateUI(result);
 
-      // Draw landmarks overlay on canvas
-      drawOverlay(ctx, landmarks, result);
+        if (result.alerts?.length) {
+          result.alerts.forEach(a => handleAlert(a, result));
+        }
+      }
     }
 
     frameCount++;
   }
 
-  // Update UI with latest result
-  updateUI(result);
-
-  // Handle any triggered alerts
-  if (result.alerts && result.alerts.length > 0) {
-    result.alerts.forEach(alert => {
-      handleAlert(alert, result);
-    });
-  }
-
-  // Schedule next frame
   animFrameId = requestAnimationFrame(processLoop);
 }
 
-// ── Draw landmarks overlay ────────────────────────────────────────────────────
-function drawOverlay(ctx, landmarks, result) {
+// ── Canvas overlays ───────────────────────────────────────────────────────────
+function drawCalibOverlay(ctx, lm) {
+  // Just show face mesh in blue — no metrics yet
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const w = canvas.width;
-  const h = canvas.height;
-
-  // Draw face mesh dots (subtle)
-  ctx.fillStyle = "rgba(79, 122, 255, 0.4)";
-  for (const lm of landmarks) {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = "rgba(79,122,255,0.5)";
+  for (const p of lm) {
     ctx.beginPath();
-    ctx.arc(lm.x * w, lm.y * h, 1.2, 0, Math.PI * 2);
+    ctx.arc(p.x*W, p.y*H, 1.5, 0, Math.PI*2);
     ctx.fill();
   }
-
-  // Highlight eyes — colour depends on state
-  const eyeColor = result.eyeClosed ? "#ef4444" : "#22c55e";
-  const eyeAlpha = result.eyeClosed ? "0.9" : "0.6";
-
-  for (const idx of [...[33,160,158,133,153,144], ...[362,385,387,263,373,380]]) {
-    const lm = landmarks[idx];
-    ctx.beginPath();
-    ctx.arc(lm.x * w, lm.y * h, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = eyeColor;
-    ctx.fill();
-  }
-
-  // Highlight mouth — colour depends on yawn state
-  const mouthColor = result.isYawning ? "#f59e0b" : "rgba(255,255,255,0.3)";
-  for (const idx of [61, 291, 13, 14, 78, 308, 82, 312]) {
-    const lm = landmarks[idx];
-    ctx.beginPath();
-    ctx.arc(lm.x * w, lm.y * h, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = mouthColor;
-    ctx.fill();
-  }
-
-  // Draw head pose direction arrow from nose tip
-  const nose = landmarks[1];
-  const arrowColor = result.isDistracted ? "#ef4444" : "#22c55e";
-  const arrowLen = 40;
-  const nx = nose.x * w;
-  const ny = nose.y * h;
-  const dx = Math.sin((result.yaw  || 0) * Math.PI / 180) * arrowLen;
-  const dy = Math.sin((result.pitch || 0) * Math.PI / 180) * arrowLen;
-
-  ctx.strokeStyle = arrowColor;
-  ctx.lineWidth   = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(nx, ny);
-  ctx.lineTo(nx + dx, ny - dy);
-  ctx.stroke();
-
-  // Draw nose dot
-  ctx.beginPath();
-  ctx.arc(nx, ny, 4, 0, Math.PI * 2);
-  ctx.fillStyle = arrowColor;
-  ctx.fill();
 }
 
-// ── Update UI metrics ─────────────────────────────────────────────────────────
-function updateUI(result) {
-  const risk = result.riskScore ?? 0;
-  updateStatusBadge(risk);
+function drawOverlay(ctx, lm, result) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const W = canvas.width, H = canvas.height;
 
-  if (!result.faceDetected) {
-    earValue.textContent    = "--";
-    marValue.textContent    = "--";
-    perclosValue.textContent = "--";
-    yawValue.textContent    = "--";
-    pitchValue.textContent  = "--";
-    setGauge(earGauge,     0, "ok");
-    setGauge(marGauge,     0, "ok");
-    setGauge(perclosGauge, 0, "ok");
-    poseStatus.textContent  = "No face";
-    phoneStatus.textContent = "---";
-    return;
+  // Face mesh dots
+  ctx.fillStyle = "rgba(79,122,255,0.3)";
+  for (const p of lm) {
+    ctx.beginPath(); ctx.arc(p.x*W, p.y*H, 1.0, 0, Math.PI*2); ctx.fill();
   }
 
-  // EAR
-  earValue.textContent = result.ear.toFixed(2);
-  const earPct = Math.max(0, Math.min(100, ((0.35 - result.ear) / 0.35) * 100));
-  const earClass = result.ear < EAR_THRESHOLD ? "danger" : result.ear < 0.23 ? "warn" : "ok";
-  setGauge(earGauge, earPct, earClass);
-  earValue.className = `metric-value ${earClass}`;
+  // Eyes
+  const eyeCol = result.eyeClosed ? "#ef4444" : "#22c55e";
+  for (const i of [33,160,158,133,153,144, 362,385,387,263,373,380]) {
+    ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.8, 0, Math.PI*2);
+    ctx.fillStyle = eyeCol; ctx.fill();
+  }
 
-  // MAR
-  marValue.textContent = result.mar.toFixed(2);
-  const marPct = Math.min(100, (result.mar / 0.8) * 100);
-  const marClass = result.mar > MAR_THRESHOLD ? "warn" : "ok";
-  setGauge(marGauge, marPct, marClass);
-  marValue.className = `metric-value ${marClass}`;
+  // Mouth
+  const mouthCol = result.isYawning ? "#f59e0b" : "rgba(255,255,255,0.2)";
+  for (const i of [61,291,13,14]) {
+    ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = mouthCol; ctx.fill();
+  }
+
+  // Yaw arrow from nose
+  const nose = lm[1];
+  const col  = result.isDistracted ? "#ef4444" : "#22c55e";
+  const nx = nose.x*W, ny = nose.y*H;
+  const dx = Math.sin((result.yaw||0)*Math.PI/180)*45;
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx+dx, ny); ctx.stroke();
+  ctx.beginPath(); ctx.arc(nx, ny, 4, 0, Math.PI*2);
+  ctx.fillStyle = col; ctx.fill();
+
+  // Distraction progress bar (bottom)
+  if (result.consecutiveDistrFrames > 5) {
+    const pct = Math.min(result.consecutiveDistrFrames/50, 1);
+    ctx.fillStyle = `rgba(239,68,68,${0.3+pct*0.5})`;
+    ctx.fillRect(0, H-5, W*pct, 5);
+  }
+
+  // Eye closure progress bar (top)
+  if (result.consecutiveClosedFrames > 5) {
+    const pct = Math.min(result.consecutiveClosedFrames/48, 1);
+    ctx.fillStyle = `rgba(245,158,11,${0.3+pct*0.5})`;
+    ctx.fillRect(0, 0, W*pct, 4);
+  }
+}
+
+// ── UI updates ────────────────────────────────────────────────────────────────
+function updateFaceStatus(detected) {
+  if (!faceStatus) return;
+  if (detected) {
+    faceStatus.textContent = "Face ✓";
+    faceStatus.style.color = "var(--safe)";
+  } else {
+    faceStatus.textContent = "⚠ Face lost";
+    faceStatus.style.color = "var(--danger)";
+  }
+}
+
+function updateUI(result) {
+  badgeLowLight?.classList.toggle("hidden", !result.lowLightMode);
+  updateStatusBadge(result.riskScore ?? 0);
+
+  // Eye status — human readable, not raw EAR number
+  if (eyeStatusEl) {
+    const s = result.eyeStatus || "--";
+    eyeStatusEl.textContent = s;
+    eyeStatusEl.className = `metric-value ${s==="Open"?"ok":s==="Closing"?"warn":"danger"}`;
+  }
+  // Eye gauge: shows how close to threshold (inverted — lower EAR = fuller bar)
+  const earPct = result._ear != null
+    ? Math.max(0, Math.min(100, ((result._earThreshold+0.15-result._ear)/0.20)*100))
+    : 0;
+  const earCls = result.eyeClosed ? "danger" : earPct > 60 ? "warn" : "ok";
+  setGauge(eyeGauge, earPct, earCls);
 
   // PERCLOS
-  const perclosPct = Math.min(100, (result.perclos / 0.30) * 100);
-  const perclosClass = result.perclos >= 0.15 ? "danger" : result.perclos >= 0.08 ? "warn" : "ok";
-  perclosValue.textContent = `${(result.perclos * 100).toFixed(0)}%`;
-  setGauge(perclosGauge, perclosPct, perclosClass);
-  perclosValue.className = `metric-value ${perclosClass}`;
+  if (perclosValue) {
+    const pPct = Math.round((result.perclos||0)*100);
+    const cls  = pPct >= 15 ? "danger" : pPct >= 8 ? "warn" : "ok";
+    perclosValue.textContent = `${pPct}%`;
+    perclosValue.className   = `metric-value ${cls}`;
+    setGauge(perclosGauge, Math.min(100,(result.perclos||0)/0.30*100), cls);
+  }
 
-  // Head pose
-  yawValue.textContent   = `${result.yaw > 0 ? "R" : "L"} ${Math.abs(result.yaw).toFixed(0)}°`;
-  pitchValue.textContent = `${result.pitch > 0 ? "Up" : "Dn"} ${Math.abs(result.pitch).toFixed(0)}°`;
-  poseStatus.textContent  = result.isDistracted ? "Distracted" : "Forward";
-  poseStatus.className    = `metric-value ${result.isDistracted ? "danger" : "ok"}`;
+  // Yawn — human readable
+  if (yawnStatusEl) {
+    const s = result.yawnStatus || "--";
+    yawnStatusEl.textContent = s;
+    yawnStatusEl.className = `metric-value ${s==="Yawning"?"warn":"ok"}`;
+  }
+  const marPct = result._mar != null
+    ? Math.min(100, (result._mar / (result._marThreshold||0.55) * 0.8) * 100)
+    : 0;
+  setGauge(yawnGauge, marPct, result.isYawning ? "warn" : "ok");
+
+  // Head pose — yaw only (pitch hidden per design decision)
+  if (yawValue) {
+    yawValue.textContent = result.yaw != null
+      ? `${result.yaw>0?"R":"L"} ${Math.abs(result.yaw).toFixed(0)}°`
+      : "--";
+  }
+  if (poseStatus) {
+    const distrPct = Math.min(100, Math.round((result.consecutiveDistrFrames||0)/50*100));
+    poseStatus.textContent = result.isDistracted
+      ? "⚠ Distracted"
+      : distrPct > 10 ? `Off-road ${distrPct}%` : "Forward ✓";
+    poseStatus.className = `metric-value ${result.isDistracted?"danger":distrPct>10?"warn":"ok"}`;
+  }
 
   // Phone
-  phoneStatus.textContent = result.phoneDetected ? "Detected!" : "None";
-  phoneStatus.className   = `metric-value ${result.phoneDetected ? "danger" : "ok"}`;
-}
-
-// ── Gauge helper ──────────────────────────────────────────────────────────────
-function setGauge(el, pct, cls) {
-  el.style.width = `${Math.min(100, pct)}%`;
-  el.className   = `gauge-fill ${cls}`;
-}
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-function updateStatusBadge(risk) {
-  riskValue.textContent  = `${risk}%`;
-  riskCircle.textContent = `${risk}%`;
-
-  if (risk < 30) {
-    badgeStatus.textContent  = "SAFE";
-    badgeStatus.className    = "video-badge badge-status badge-safe";
-    riskCircle.className     = "risk-circle safe";
-  } else if (risk < 70) {
-    badgeStatus.textContent  = "WARNING";
-    badgeStatus.className    = "video-badge badge-status badge-warn";
-    riskCircle.className     = "risk-circle warn";
-  } else {
-    badgeStatus.textContent  = "DANGER";
-    badgeStatus.className    = "video-badge badge-status badge-danger";
-    riskCircle.className     = "risk-circle danger";
+  if (phoneStatus) {
+    phoneStatus.textContent = result.phoneFlag ? "Detected!" : "None";
+    phoneStatus.className   = `metric-value ${result.phoneFlag?"danger":"ok"}`;
   }
 }
 
-// ── Handle alert ──────────────────────────────────────────────────────────────
+function setGauge(el, pct, cls) {
+  if (!el) return;
+  el.style.width  = `${Math.min(100, pct)}%`;
+  el.className    = `gauge-fill ${cls}`;
+}
+
+function updateStatusBadge(risk) {
+  if (riskCircle) riskCircle.textContent = `${risk}%`;
+  const level = risk < 30 ? "safe" : risk < 70 ? "warn" : "danger";
+  if (riskCircle) riskCircle.className = `risk-circle ${level}`;
+  if (riskValue)  riskValue.textContent = level.charAt(0).toUpperCase()+level.slice(1);
+  if (badgeStatus) {
+    badgeStatus.textContent = level.toUpperCase();
+    badgeStatus.className   = `video-badge badge-status badge-${level}`;
+  }
+}
+
+// ── Alert handling ────────────────────────────────────────────────────────────
 async function handleAlert(alert, metrics) {
-  // 1. Add to on-screen log
   addAlertToLog(alert);
-
-  // 2. Play audio beep
   playBeep(alert.type);
-
-  // 3. Log to backend if session is active
   if (currentSessionId) {
     try {
       await apiFetch("/api/events/", {
         method: "POST",
         body: JSON.stringify({
-          session_id:  currentSessionId,
-          event_type:  alert.type,
-          ear:         metrics.ear,
-          mar:         metrics.mar,
-          yaw:         metrics.yaw,
-          pitch:       metrics.pitch,
-          perclos:     metrics.perclos,
-          risk_score:  metrics.riskScore,
+          session_id: currentSessionId,
+          event_type: alert.type,
+          ear:        metrics._ear,
+          mar:        metrics._mar,
+          yaw:        metrics.yaw,
+          pitch:      null, // pitch not stored — unreliable
+          perclos:    metrics.perclos,
+          risk_score: metrics.riskScore,
         }),
       });
-    } catch (e) {
-      console.warn("[DISHA] Failed to log event:", e);
-    }
+    } catch (_) {}
   }
 }
 
-// ── On-screen alert log ───────────────────────────────────────────────────────
 function addAlertToLog(alert) {
-  // Remove "no alerts" placeholder if present
   const empty = alertLog.querySelector(".empty-state");
   if (empty) empty.remove();
-
-  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
+  const time  = new Date().toLocaleTimeString("en-US",
+    { hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true });
   const entry = document.createElement("div");
   entry.className = `alert-entry ${alert.type}`;
-  entry.innerHTML = `
-    <span class="alert-time">${time}</span>
-    <span class="alert-msg">${alert.message}</span>
-  `;
-
-  // Prepend so newest is at top
+  entry.innerHTML = `<span class="alert-time">${time}</span>
+                     <span class="alert-msg">${alert.message}</span>`;
   alertLog.insertBefore(entry, alertLog.firstChild);
-
-  // Keep log max 20 entries
-  while (alertLog.children.length > 20) {
-    alertLog.removeChild(alertLog.lastChild);
-  }
+  while (alertLog.children.length > 30) alertLog.removeChild(alertLog.lastChild);
 }
 
-// ── Audio alert ───────────────────────────────────────────────────────────────
-// Uses Web Audio API to synthesise a beep — no file needed.
-function playBeep(alertType) {
+function playBeep(type) {
   try {
-    const audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode   = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    // Different tones for different alert types
-    const freqMap = {
-      drowsy_eyes:     880,   // A5 — urgent
-      yawning:         660,   // E5 — moderate
-      phone_detected:  1100,  // C#6 — sharp
-      head_distraction: 770,  // G5
-      high_risk:       1200,  // High — critical
-    };
-    oscillator.frequency.value = freqMap[alertType] || 880;
-    oscillator.type            = "sine";
-    gainNode.gain.value        = 0.3;
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + (alertType === "high_risk" ? 0.8 : 0.4));
-  } catch (e) {
-    // Audio context may be blocked before user interaction — fail silently
-  }
+    const ac   = new (window.AudioContext||window.webkitAudioContext)();
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.frequency.value = {drowsy_eyes:880,yawning:660,phone_detected:1100,
+                            head_distraction:770,high_risk:1200}[type]||880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.3, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+(type==="high_risk"?0.9:0.45));
+    osc.start(); osc.stop(ac.currentTime+1);
+  } catch(_) {}
 }
 
-// ── Event listeners ───────────────────────────────────────────────────────────
-btnStart.addEventListener("click", startMonitoring);
-btnStop.addEventListener("click",  stopMonitoring);
+// ── Fullscreen ────────────────────────────────────────────────────────────────
+btnFullscreen?.addEventListener("click", () => {
+  const wrap = document.querySelector(".video-wrap");
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen?.();
+    btnFullscreen.textContent = "⛶ Exit Fullscreen";
+  } else {
+    document.exitFullscreen?.();
+    btnFullscreen.textContent = "⛶ Fullscreen";
+  }
+});
 
-// Populate user name in sidebar
+// ── Sidebar + init ────────────────────────────────────────────────────────────
 const user = getAuthUser();
 document.getElementById("sidebarUserName").textContent = user.name || "Driver";
 document.getElementById("sidebarUserRole").textContent = user.role || "user";
-document.getElementById("sidebarAvatar").textContent   = (user.name || "D")[0].toUpperCase();
-
-// Hide admin link for non-admins
-if (user.role !== "admin") {
-  const adminLinks = document.querySelectorAll(".admin-only");
-  adminLinks.forEach(el => el.classList.add("hidden"));
-}
-
-// Logout button
+document.getElementById("sidebarAvatar").textContent   = (user.name||"D")[0].toUpperCase();
 document.getElementById("btnLogout").addEventListener("click", () => {
-  if (isMonitoring) stopMonitoring();
+  if (isMonitoring) doStop("");
   authLogout();
 });
+btnStart.addEventListener("click", startMonitoring);
 
-// Pre-load models in background after page load so Start is faster
-window.addEventListener("load", () => {
-  setTimeout(initModels, 800);
+// Keyboard shortcut: Space = start/stop
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+    e.preventDefault();
+    if (!isMonitoring) startMonitoring();
+    else requestStop();
+  }
 });
+
+window.addEventListener("load", () => setTimeout(initModels, 800));

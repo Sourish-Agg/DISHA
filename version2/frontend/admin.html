@@ -1,39 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>D.I.S.H.A. — Admin Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    /* ── Admin-specific styles ──────────────────────────────────────── */
+    .admin-tabs {
+      display: flex; gap: .4rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.2rem;
+      padding-bottom: .5rem;
+    }
+    .admin-tab {
+      background: none; border: none; color: var(--muted);
+      font-size: .88rem; font-weight: 500; padding: .45rem .9rem;
+      border-radius: 6px; cursor: pointer; transition: all .15s;
+    }
+    .admin-tab:hover  { background: var(--surface2); color: var(--text); }
+    .admin-tab.active { background: var(--accent);   color: #fff; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: .9rem;
+      margin-bottom: 1.3rem;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+    }
+    .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-val   { font-size: 2rem; font-weight: 700; line-height: 1.1; margin-top: .2rem; }
+    .kpi-sub   { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
+
+    .overview-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 1rem; }
+
+    .search-bar {
+      display: flex; align-items: center; gap: .6rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: .45rem .75rem;
+      margin-bottom: .9rem;
+    }
+    .search-bar input {
+      background: none; border: none; color: var(--text);
+      font-size: .88rem; outline: none; flex: 1;
+    }
+    .search-bar input::placeholder { color: var(--muted); }
+
+    .confirm-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    .confirm-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.8rem;
+      max-width: 400px; width: 90%; text-align: center;
+    }
+    .confirm-box p  { color: var(--muted); font-size: .9rem; margin: .8rem 0 1.4rem; }
+    .confirm-btns   { display: flex; gap: .75rem; justify-content: center; }
+  </style>
 </head>
 <body>
-<!-- Inline auth guard — admin only -->
+
 <script>
-  (function () {
-    var token = localStorage.getItem("disha_token");
-    var role  = localStorage.getItem("disha_role");
-    if (!token) { window.location.replace("login.html"); }
-    else if (role !== "admin") { window.location.replace("index.html"); }
+  (function(){
+    var t=localStorage.getItem("disha_token"),r=localStorage.getItem("disha_role");
+    if(!t){window.location.replace("login.html");}
+    else if(r!=="admin"){window.location.replace("index.html");}
   })();
 </script>
 
 <div class="app-shell">
-
   <!-- Sidebar -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <h1>D.I.S.H.A.</h1>
-      <p>Safety Assistant</p>
-    </div>
+    <div class="sidebar-logo"><h1>D.I.S.H.A.</h1><p>Admin Panel</p></div>
     <nav class="sidebar-nav">
-      <a class="nav-item active" href="admin.html">
-        <span class="nav-icon">⚙️</span> Admin Dashboard
-      </a>
-      <a class="nav-item" href="all-sessions.html">
-        <span class="nav-icon">📋</span> All Sessions
-      </a>
+      <a class="nav-item active" href="admin.html"><span class="nav-icon">⚙️</span> Dashboard</a>
+      <a class="nav-item" href="all-sessions.html"><span class="nav-icon">📋</span> All Sessions</a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-pill">
@@ -43,9 +93,7 @@
           <div class="user-role" id="sidebarUserRole">admin</div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-full" id="btnLogout" style="margin-top:.6rem;font-size:.8rem">
-        Sign Out
-      </button>
+      <button class="btn btn-ghost btn-full" id="btnLogout" style="margin-top:.6rem;font-size:.8rem">Sign Out</button>
     </div>
   </aside>
 
@@ -53,88 +101,111 @@
   <div class="main-content">
     <div class="topbar">
       <h2>Admin Dashboard</h2>
+      <div class="topbar-right"><button class="btn-theme" id="btnTheme" title="Toggle theme">🌙</button>
+        <button class="btn btn-ghost" onclick="loadStats();loadUsers();" style="font-size:.8rem">↻ Refresh</button>
+      </div>
     </div>
 
     <div class="page-content">
 
-      <!-- Stat cards -->
-      <div class="stat-grid">
-        <div class="card">
-          <div class="card-title">Total Users</div>
-          <div class="card-big-value" id="statUsers">—</div>
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Users</div>
+          <div class="kpi-val" id="statUsers">—</div>
+          <div class="kpi-sub">registered accounts</div>
         </div>
-        <div class="card">
-          <div class="card-title">Total Sessions</div>
-          <div class="card-big-value" id="statSessions">—</div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Sessions</div>
+          <div class="kpi-val" id="statSessions">—</div>
+          <div class="kpi-sub">monitoring runs</div>
         </div>
-        <div class="card">
-          <div class="card-title">Total Alert Events</div>
-          <div class="card-big-value" id="statEvents">—</div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Alerts</div>
+          <div class="kpi-val" id="statEvents">—</div>
+          <div class="kpi-sub">detection events</div>
         </div>
       </div>
 
-      <!-- Tab bar -->
-      <div style="display:flex;gap:.5rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem">
-        <button class="btn btn-ghost admin-tab active" data-panel="panelOverview"
-          style="font-size:.85rem">Overview</button>
-        <button class="btn btn-ghost admin-tab" data-panel="panelUsers"
-          style="font-size:.85rem">User Management</button>
+      <!-- Tabs -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-panel="panelOverview">📊 Overview</button>
+        <button class="admin-tab"        data-panel="panelUsers">👥 Users</button>
       </div>
 
-      <!-- Overview panel -->
-      <div id="panelOverview">
-        <div class="two-col" style="gap:1rem">
-
-          <!-- Events by type -->
+      <!-- Overview -->
+      <div id="panelOverview" class="tab-panel">
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1rem">
+          <!-- Alert breakdown -->
           <div class="card">
             <div class="card-title">Alerts by Type</div>
             <div id="eventBreakdown">
-              <p style="color:var(--muted);font-size:.85rem">Loading…</p>
+              <p style="color:var(--muted);font-size:.82rem">Loading…</p>
+            </div>
+          </div>
+
+          <!-- Trend chart -->
+          <div class="card full-col" style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+              <div class="card-title" style="margin-bottom:0">Alert Trend — Last 7 Days</div>
+              <button class="btn btn-ghost" id="btnExportCSV" style="font-size:.78rem">
+                ⬇ Export CSV
+              </button>
+            </div>
+            <div id="trendChart" style="min-height:60px">
+              <p style="color:var(--muted);font-size:.82rem">Loading…</p>
             </div>
           </div>
 
           <!-- Recent sessions -->
           <div class="card">
-            <div class="card-title">Recent Sessions (all users)</div>
+            <div class="card-title">Recent Sessions (platform-wide)</div>
             <div style="overflow-x:auto">
               <table class="sessions-table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Driver</th>
-                    <th>Started</th>
-                    <th>Alerts</th>
-                    <th>Max Risk</th>
+                    <th>User</th><th>Driver</th><th>Date</th>
+                    <th>Duration</th><th>Alerts</th><th>Risk</th>
                   </tr>
                 </thead>
                 <tbody id="recentSessionsBody">
-                  <tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>
+                  <tr><td colspan="6" style="color:var(--muted)">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
+            <div style="margin-top:.8rem">
+              <a href="all-sessions.html" class="btn btn-ghost" style="font-size:.8rem">
+                View all sessions →
+              </a>
+            </div>
           </div>
-
         </div>
       </div>
 
-      <!-- User management panel -->
-      <div id="panelUsers" class="hidden">
+      <!-- Users -->
+      <div id="panelUsers" class="tab-panel hidden">
         <div class="card">
-          <div class="card-title">All Users</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem">
+            <div class="card-title" style="margin-bottom:0">User Management</div>
+            <span style="font-size:.78rem;color:var(--muted)" id="userCount"></span>
+          </div>
+
+          <!-- Search -->
+          <div class="search-bar">
+            <span style="color:var(--muted)">🔍</span>
+            <input id="userSearchInput" type="text" placeholder="Search by name or email…"/>
+          </div>
+
           <div style="overflow-x:auto">
             <table class="sessions-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
+                  <th>User</th><th>Role</th><th>Status</th>
+                  <th>Joined</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody id="usersBody">
-                <tr><td colspan="6" style="color:var(--muted)">Loading…</td></tr>
+                <tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -142,8 +213,31 @@
       </div>
 
     </div><!-- /page-content -->
-  </div><!-- /main-content -->
-</div><!-- /app-shell -->
+  </div>
+</div>
+
+<!-- Events modal -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" style="max-width:580px">
+    <h3 id="modalTitle">Events</h3>
+    <div id="eventsList" style="max-height:420px;overflow-y:auto;margin-top:.6rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btnCloseModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete modal -->
+<div class="confirm-modal hidden" id="confirmModal">
+  <div class="confirm-box">
+    <h3 style="color:var(--danger)">⚠️ Confirm Delete</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" id="confirmNo">Cancel</button>
+      <button class="btn btn-danger" id="confirmYes">Delete</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast-container"></div>
 <script src="js/api.js"></script>

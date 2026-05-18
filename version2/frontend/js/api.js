@@ -126,3 +126,24 @@ function showToast(message, type = "info", duration = 4000) {
   container.appendChild(toast);
   setTimeout(() => toast.remove(), duration);
 }
+
+// ── Theme toggle (persisted in localStorage) ──────────────────────────────────
+(function initTheme() {
+  if (localStorage.getItem("disha_theme") === "light") {
+    document.body.classList.add("light");
+  }
+})();
+
+function setupThemeToggle() {
+  const btn = document.getElementById("btnTheme");
+  if (!btn) return;
+  const isLight = document.body.classList.contains("light");
+  btn.textContent = isLight ? "☀️" : "🌙";
+  btn.addEventListener("click", () => {
+    document.body.classList.toggle("light");
+    const light = document.body.classList.contains("light");
+    localStorage.setItem("disha_theme", light ? "light" : "dark");
+    btn.textContent = light ? "☀️" : "🌙";
+  });
+}
+document.addEventListener("DOMContentLoaded", setupThemeToggle);

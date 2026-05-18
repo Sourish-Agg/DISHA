@@ -482,3 +482,27 @@ body {
   .monitor-grid { grid-template-columns: 1fr; height: auto; }
   .sidebar { display: none; }
 }
+
+/* ── Light theme ─────────────────────────────────────────────────── */
+body.light {
+  --bg:       #f1f5f9;
+  --surface:  #ffffff;
+  --surface2: #e2e8f0;
+  --border:   #cbd5e1;
+  --text:     #0f172a;
+  --muted:    #64748b;
+}
+body.light .video-wrap { background: #e2e8f0; }
+
+/* Theme toggle button */
+.btn-theme {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .35rem .6rem;
+  color: var(--muted);
+  font-size: .9rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-theme:hover { background: var(--surface2); color: var(--text); }

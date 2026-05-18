@@ -1,66 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>D.I.S.H.A. — Live Monitor</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    /* Calibration overlay */
+    .calib-overlay {
+      position:absolute;inset:0;background:rgba(10,12,20,.82);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:.8rem;z-index:10;border-radius:var(--radius);
+    }
+    .calib-title { font-size:1rem;font-weight:600;color:#fff; }
+    .calib-msg   { font-size:.82rem;color:rgba(255,255,255,.7);text-align:center;max-width:280px; }
+    .calib-bar-track {
+      width:200px;height:8px;background:var(--surface2);border-radius:99px;overflow:hidden;
+    }
+    .calib-bar-fill {
+      height:100%;background:var(--accent);border-radius:99px;
+      transition:width .3s ease;width:0%;
+    }
+    /* Notes modal */
+    .notes-modal {
+      position:fixed;inset:0;background:rgba(0,0,0,.65);
+      display:flex;align-items:center;justify-content:center;z-index:999;
+    }
+    .notes-box {
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius);padding:1.8rem;max-width:420px;width:90%;
+    }
+    .notes-box h3 { margin-bottom:.5rem; }
+    .notes-box p  { color:var(--muted);font-size:.82rem;margin-bottom:1rem; }
+    .notes-box textarea {
+      width:100%;background:var(--surface2);border:1px solid var(--border);
+      border-radius:6px;padding:.6rem .8rem;color:var(--text);font-size:.88rem;
+      resize:vertical;min-height:70px;outline:none;font-family:var(--font);
+    }
+    .notes-box textarea:focus { border-color:var(--accent); }
+    /* Summary modal */
+    .summary-modal {
+      position:fixed;inset:0;background:rgba(0,0,0,.7);
+      display:flex;align-items:center;justify-content:center;z-index:998;
+    }
+    .summary-box {
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius);padding:2rem;max-width:600px;width:95%;
+      max-height:90vh;overflow-y:auto;
+    }
+    .kpi-mini { background:var(--surface2);border-radius:8px;padding:.7rem .9rem; }
+    .kpi-lbl  { font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em; }
+    .kpi-big  { font-size:1.6rem;font-weight:700;line-height:1.1;margin-top:.15rem; }
+  </style>
 </head>
 <body>
-<!-- Auth guard runs immediately before any content renders -->
+
 <script>
-  // Inline guard — runs synchronously before DOM renders.
-  // If no token, boot to login instantly (no flash of content).
-  (function () {
-    var token = localStorage.getItem("disha_token");
-    var role  = localStorage.getItem("disha_role");
-    if (!token) { window.location.replace("login.html"); }
-    else if (role === "admin") { window.location.replace("admin.html"); }
+  (function(){
+    var t=localStorage.getItem("disha_token"),r=localStorage.getItem("disha_role");
+    if(!t){window.location.replace("login.html");}
+    else if(r==="admin"){window.location.replace("admin.html");}
   })();
 </script>
 
 <div class="app-shell">
-
-  <!-- ── Sidebar ───────────────────────────────────────────────────────── -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <h1>D.I.S.H.A.</h1>
-      <p>Safety Assistant</p>
-    </div>
-
+    <div class="sidebar-logo"><h1>D.I.S.H.A.</h1><p>Safety Assistant</p></div>
     <nav class="sidebar-nav">
-      <a class="nav-item active" href="index.html">
-        <span class="nav-icon">🎥</span> Live Monitor
-      </a>
-      <a class="nav-item" href="history.html">
-        <span class="nav-icon">📋</span> Session History
-      </a>
-      <a class="nav-item admin-only" href="admin.html">
-        <span class="nav-icon">⚙️</span> Admin
-      </a>
+      <a class="nav-item active" href="index.html"><span class="nav-icon">🎥</span> Live Monitor</a>
+      <a class="nav-item" href="history.html"><span class="nav-icon">📋</span> Session History</a>
     </nav>
-
     <div class="sidebar-footer">
       <div class="user-pill">
         <div class="user-avatar" id="sidebarAvatar">D</div>
         <div class="user-info">
-          <div class="user-name"  id="sidebarUserName">Driver</div>
-          <div class="user-role"  id="sidebarUserRole">user</div>
+          <div class="user-name" id="sidebarUserName">Driver</div>
+          <div class="user-role" id="sidebarUserRole">user</div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-full" id="btnLogout" style="margin-top:.6rem;font-size:.8rem">
-        Sign Out
-      </button>
+      <button class="btn btn-ghost btn-full" id="btnLogout" style="margin-top:.6rem;font-size:.8rem">Sign Out</button>
     </div>
   </aside>
 
-  <!-- ── Main content ──────────────────────────────────────────────────── -->
   <div class="main-content">
     <div class="topbar">
       <h2>Live Driver Monitor</h2>
-      <div class="topbar-right">
+      <div class="topbar-right"><button class="btn-theme" id="btnTheme" title="Toggle theme">🌙</button>
+        <span style="font-size:.78rem;color:var(--muted)" id="faceStatus">Camera off</span>
         <span class="session-label" id="sessionLabel"></span>
       </div>
     </div>
@@ -68,105 +96,99 @@
     <div class="page-content">
       <div class="monitor-grid">
 
-        <!-- Left: video + controls -->
+        <!-- Video panel -->
         <div class="video-panel">
-
-          <!-- Video feed with overlay canvas -->
           <div class="video-wrap">
-            <!-- Status overlay badges -->
             <div class="video-badge badge-status badge-safe" id="badgeStatus">SAFE</div>
             <div class="video-badge badge-live hidden" id="badgeLive">● LIVE</div>
+            <div class="video-badge hidden" id="badgeLowLight"
+              style="right:.75rem;top:2.4rem;background:#7c3aed;color:#fff;font-size:.7rem">
+              🌙 Low Light
+            </div>
 
-            <!-- Placeholder shown before camera starts -->
             <div class="video-placeholder" id="placeholder">
               <span class="placeholder-icon">📷</span>
               <span>Camera not active</span>
-              <span style="font-size:.78rem">Click "Start Monitoring" to begin</span>
+              <span style="font-size:.78rem;color:var(--muted)">
+                Press <kbd style="background:var(--surface2);padding:.1rem .35rem;border-radius:3px;font-size:.75rem">Space</kbd>
+                or click Start
+              </span>
+            </div>
+
+            <!-- Calibration overlay (hidden until calibration starts) -->
+            <div class="calib-overlay hidden" id="calibOverlay">
+              <div class="calib-title">🎯 Calibrating…</div>
+              <div class="calib-msg" id="calibMsg">Look straight at the camera with a relaxed face.</div>
+              <div class="calib-bar-track">
+                <div class="calib-bar-fill" id="calibProgress"></div>
+              </div>
             </div>
 
             <video id="video" playsinline muted></video>
             <canvas id="canvas"></canvas>
           </div>
 
-          <!-- Start / Stop controls -->
           <div class="control-bar">
             <button class="btn btn-success" id="btnStart">▶ Start Monitoring</button>
-            <button class="btn btn-danger  hidden" id="btnStop" disabled>■ Stop</button>
+            <button class="btn btn-danger hidden" id="btnStop" disabled>■ Stop</button>
+            <button class="btn btn-ghost" id="btnFullscreen" style="margin-left:auto">⛶ Fullscreen</button>
           </div>
 
-          <!-- On-screen alert log -->
           <div class="card" style="flex-shrink:0">
             <div class="card-title">⚠️ Alert Log</div>
             <div class="alert-log" id="alertLog">
-              <p class="empty-state" style="padding:.5rem;text-align:left">
+              <p class="empty-state" style="padding:.4rem;text-align:left;font-size:.82rem">
                 No alerts yet — monitoring is safe.
               </p>
             </div>
           </div>
+        </div>
 
-        </div><!-- /video-panel -->
-
-        <!-- Right: metrics panel -->
+        <!-- Metrics panel -->
         <div class="metrics-panel">
 
-          <!-- Risk score -->
           <div class="card">
-            <div class="card-title">Risk Score</div>
+            <div class="card-title">Overall Risk Score</div>
             <div class="risk-display">
               <div class="risk-circle safe" id="riskCircle">0%</div>
               <div class="risk-label" id="riskValue">Safe</div>
             </div>
           </div>
 
-          <!-- Eye metrics -->
           <div class="card">
-            <div class="card-title">👁 Eye Monitoring</div>
+            <div class="card-title">👁 Eye State</div>
             <div class="metric-item">
               <div class="metric-header">
-                <span class="metric-label">Eye Aspect Ratio (EAR)</span>
-                <span class="metric-value ok" id="earValue">--</span>
+                <span class="metric-label">Status</span>
+                <span class="metric-value ok" id="eyeStatus">--</span>
               </div>
-              <div class="gauge-track">
-                <div class="gauge-fill" id="earGauge" style="width:0%"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:.2rem">
-                <span>Open</span><span>Closed (0.19)</span>
-              </div>
+              <div class="gauge-track"><div class="gauge-fill" id="eyeGauge" style="width:0%"></div></div>
             </div>
-            <div class="metric-item" style="margin-top:.8rem">
+            <div class="metric-item" style="margin-top:.9rem">
               <div class="metric-header">
-                <span class="metric-label">PERCLOS (eye closure %)</span>
+                <span class="metric-label">PERCLOS (% eye closed)</span>
                 <span class="metric-value ok" id="perclosValue">0%</span>
               </div>
-              <div class="gauge-track">
-                <div class="gauge-fill" id="perclosGauge" style="width:0%"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:.2rem">
-                <span>0%</span><span>Alert (15%)</span>
+              <div class="gauge-track"><div class="gauge-fill" id="perclosGauge" style="width:0%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:.2rem">
+                <span>0%</span><span>Alert at 15%</span>
               </div>
             </div>
           </div>
 
-          <!-- Mouth / yawn -->
           <div class="card">
             <div class="card-title">😮 Yawn Detection</div>
             <div class="metric-item">
               <div class="metric-header">
-                <span class="metric-label">Mouth Aspect Ratio (MAR)</span>
-                <span class="metric-value ok" id="marValue">--</span>
+                <span class="metric-label">Status</span>
+                <span class="metric-value ok" id="yawnStatus">--</span>
               </div>
-              <div class="gauge-track">
-                <div class="gauge-fill" id="marGauge" style="width:0%"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:.2rem">
-                <span>Closed</span><span>Yawn (0.50)</span>
-              </div>
+              <div class="gauge-track"><div class="gauge-fill" id="yawnGauge" style="width:0%"></div></div>
             </div>
           </div>
 
-          <!-- Head pose -->
           <div class="card">
-            <div class="card-title">🔄 Head Pose</div>
+            <div class="card-title">🔄 Head Direction</div>
             <div class="metric-item">
               <div class="metric-header">
                 <span class="metric-label">Yaw (left / right)</span>
@@ -175,39 +197,65 @@
             </div>
             <div class="metric-item" style="margin-top:.6rem">
               <div class="metric-header">
-                <span class="metric-label">Pitch (up / down)</span>
-                <span class="metric-value ok" id="pitchValue">--</span>
-              </div>
-            </div>
-            <div class="metric-item" style="margin-top:.6rem">
-              <div class="metric-header">
-                <span class="metric-label">Gaze direction</span>
+                <span class="metric-label">Status</span>
                 <span class="metric-value ok" id="poseStatus">--</span>
               </div>
             </div>
+            <p style="font-size:.7rem;color:var(--muted);margin-top:.5rem">
+              Brief mirror/sign glances (&lt;1.7 s) are allowed.
+            </p>
           </div>
 
-          <!-- Phone detection -->
           <div class="card">
             <div class="card-title">📱 Phone Detection</div>
             <div class="metric-header">
               <span class="metric-label">Phone in frame</span>
               <span class="metric-value ok" id="phoneStatus">---</span>
             </div>
+            <p style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Powered by YOLOv8n</p>
           </div>
 
-        </div><!-- /metrics-panel -->
-      </div><!-- /monitor-grid -->
-    </div><!-- /page-content -->
-  </div><!-- /main-content -->
-</div><!-- /app-shell -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notes modal (shown before stopping) -->
+<div class="notes-modal hidden" id="notesModal">
+  <div class="notes-box">
+    <h3>End Session</h3>
+    <p>Add a quick note about this drive (optional).</p>
+    <textarea id="notesInput" placeholder="e.g. Night drive, highway, felt tired after 1 hour…"></textarea>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-ghost" id="btnCancelStop">Resume</button>
+      <button class="btn btn-danger" id="btnConfirmStop">Stop &amp; Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Session summary modal -->
+<div class="summary-modal hidden" id="summaryModal">
+  <div class="summary-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+      <h3>📊 Session Summary</h3>
+      <button class="btn btn-ghost" id="btnCloseSummary" style="padding:.3rem .7rem">✕</button>
+    </div>
+    <div id="summaryContent">Loading…</div>
+    <div style="display:flex;justify-content:space-between;margin-top:1.4rem">
+      <a href="history.html" class="btn btn-ghost" style="font-size:.82rem">View History →</a>
+      <button class="btn btn-primary" id="btnCloseSummary2"
+        onclick="document.getElementById('summaryModal').classList.add('hidden')">
+        Done
+      </button>
+    </div>
+  </div>
+</div>
 
 <div id="toast-container"></div>
 
-<!-- TF.js + COCO-SSD for phone detection (loaded before monitor.js) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-
+<!-- ONNX Runtime Web for YOLOv8 -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
 <script src="js/api.js"></script>
 <script src="js/detection.js"></script>
 <script src="js/monitor.js"></script>
