@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D.I.S.H.A. — All Sessions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Inline auth guard — admin only -->
+<script>
+  (function () {
+    var token = localStorage.getItem("disha_token");
+    var role  = localStorage.getItem("disha_role");
+    if (!token) { window.location.replace("login.html"); }
+    else if (role !== "admin") { window.location.replace("index.html"); }
+  })();
+</script>
+
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>D.I.S.H.A.</h1>
+      <p>Safety Assistant</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="admin.html">
+        <span class="nav-icon">⚙️</span> Admin Dashboard
+      </a>
+      <a class="nav-item active" href="all-sessions.html">
+        <span class="nav-icon">📋</span> All Sessions
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="sidebarAvatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName">Admin</div>
+          <div class="user-role" id="sidebarUserRole">admin</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" id="btnLogout"
+        style="margin-top:.6rem;font-size:.8rem">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <div class="topbar">
+      <h2>All Sessions — Every User</h2>
+    </div>
+
+    <div class="page-content">
+      <div class="card">
+        <div class="card-title">All Monitoring Sessions (platform-wide)</div>
+
+        <div class="empty-state hidden" id="emptyState">
+          <span class="empty-icon">📋</span>
+          No sessions recorded yet.
+        </div>
+
+        <div style="overflow-x:auto">
+          <table class="sessions-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Driver Name</th>
+                <th>Date / Time</th>
+                <th>Duration</th>
+                <th>Alerts</th>
+                <th>Max Risk</th>
+                <th>Events</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsBody">
+              <tr>
+                <td colspan="7" style="text-align:center;color:var(--muted);padding:2rem">
+                  Loading…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Events modal -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" style="max-width:580px">
+    <h3 id="modalTitle">Events</h3>
+    <div id="eventsList"
+      style="max-height:420px;overflow-y:auto;margin-top:.5rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btnCloseModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="js/api.js"></script>
+<script>
+  // Populate sidebar
+  const u = getAuthUser();
+  document.getElementById("sidebarUserName").textContent = u.name || "Admin";
+  document.getElementById("sidebarUserRole").textContent = "admin";
+  document.getElementById("sidebarAvatar").textContent   = (u.name || "A")[0].toUpperCase();
+  document.getElementById("btnLogout").addEventListener("click", authLogout);
+
+  const typeLabels = {
+    drowsy_eyes:      "😴 Drowsy Eyes",
+    yawning:          "🥱 Yawning",
+    phone_detected:   "📱 Phone Detected",
+    head_distraction: "↩️ Head Distraction",
+    high_risk:        "🔴 High Risk",
+  };
+
+  // ── Load all sessions (admin sees all) ───────────────────────────────────
+  async function loadSessions() {
+    try {
+      // Admin route returns all sessions
+      const sessions = await apiFetch("/api/sessions/?limit=200");
+      renderSessions(sessions);
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }
+
+  function formatDuration(sec) {
+    if (!sec) return "In progress";
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  function renderSessions(sessions) {
+    const tbody    = document.getElementById("sessionsBody");
+    const empty    = document.getElementById("emptyState");
+
+    if (!sessions.length) {
+      empty.classList.remove("hidden");
+      tbody.innerHTML = "";
+      return;
+    }
+    empty.classList.add("hidden");
+
+    tbody.innerHTML = sessions.map(s => {
+      const risk      = Math.round(s.max_risk_score || 0);
+      const riskClass = risk < 30 ? "safe" : risk < 70 ? "warn" : "danger";
+      const started   = new Date(s.started_at).toLocaleString();
+      return `
+        <tr>
+          <td style="color:var(--muted);font-size:.82rem">${s.user_id.slice(-6)}</td>
+          <td>${s.driver_name || "—"}</td>
+          <td>${started}</td>
+          <td>${formatDuration(s.duration_seconds)}</td>
+          <td>${s.total_alerts}</td>
+          <td><span class="risk-pill ${riskClass}">${risk}%</span></td>
+          <td>
+            <button class="btn btn-ghost"
+              style="padding:.25rem .7rem;font-size:.76rem"
+              onclick="viewEvents('${s.id}','${started}')">
+              View
+            </button>
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  // ── Events modal ──────────────────────────────────────────────────────────
+  async function viewEvents(sessionId, label) {
+    document.getElementById("modalTitle").textContent = `Events — ${label}`;
+    document.getElementById("eventsList").innerHTML =
+      '<p style="color:var(--muted);font-size:.85rem">Loading…</p>';
+    document.getElementById("modalOverlay").classList.remove("hidden");
+
+    try {
+      const events = await apiFetch(`/api/events/${sessionId}`);
+      const el = document.getElementById("eventsList");
+      if (!events.length) {
+        el.innerHTML = '<p class="empty-state"><span class="empty-icon">✅</span>No alerts in this session.</p>';
+        return;
+      }
+      el.innerHTML = events.map(e => `
+        <div class="alert-entry ${e.event_type}" style="margin-bottom:.3rem">
+          <span class="alert-time">${new Date(e.timestamp).toLocaleTimeString()}</span>
+          <span class="alert-msg">
+            ${typeLabels[e.event_type] || e.event_type}
+            &nbsp;·&nbsp; risk ${Math.round(e.risk_score)}%
+            ${e.ear != null ? `&nbsp;·&nbsp; EAR ${e.ear.toFixed(2)}` : ""}
+            ${e.mar != null ? `&nbsp;·&nbsp; MAR ${e.mar.toFixed(2)}` : ""}
+          </span>
+        </div>`).join("");
+    } catch (e) {
+      document.getElementById("eventsList").innerHTML =
+        `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  document.getElementById("btnCloseModal").addEventListener("click", () =>
+    document.getElementById("modalOverlay").classList.add("hidden"));
+  document.getElementById("modalOverlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("modalOverlay"))
+      document.getElementById("modalOverlay").classList.add("hidden");
+  });
+
+  loadSessions();
+</script>
+</body>
+</html>

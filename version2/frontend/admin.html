@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D.I.S.H.A. — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<!-- Inline auth guard — admin only -->
+<script>
+  (function () {
+    var token = localStorage.getItem("disha_token");
+    var role  = localStorage.getItem("disha_role");
+    if (!token) { window.location.replace("login.html"); }
+    else if (role !== "admin") { window.location.replace("index.html"); }
+  })();
+</script>
+
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>D.I.S.H.A.</h1>
+      <p>Safety Assistant</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" href="admin.html">
+        <span class="nav-icon">⚙️</span> Admin Dashboard
+      </a>
+      <a class="nav-item" href="all-sessions.html">
+        <span class="nav-icon">📋</span> All Sessions
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="sidebarAvatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName">Admin</div>
+          <div class="user-role" id="sidebarUserRole">admin</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" id="btnLogout" style="margin-top:.6rem;font-size:.8rem">
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <div class="topbar">
+      <h2>Admin Dashboard</h2>
+    </div>
+
+    <div class="page-content">
+
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="card">
+          <div class="card-title">Total Users</div>
+          <div class="card-big-value" id="statUsers">—</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Total Sessions</div>
+          <div class="card-big-value" id="statSessions">—</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Total Alert Events</div>
+          <div class="card-big-value" id="statEvents">—</div>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem">
+        <button class="btn btn-ghost admin-tab active" data-panel="panelOverview"
+          style="font-size:.85rem">Overview</button>
+        <button class="btn btn-ghost admin-tab" data-panel="panelUsers"
+          style="font-size:.85rem">User Management</button>
+      </div>
+
+      <!-- Overview panel -->
+      <div id="panelOverview">
+        <div class="two-col" style="gap:1rem">
+
+          <!-- Events by type -->
+          <div class="card">
+            <div class="card-title">Alerts by Type</div>
+            <div id="eventBreakdown">
+              <p style="color:var(--muted);font-size:.85rem">Loading…</p>
+            </div>
+          </div>
+
+          <!-- Recent sessions -->
+          <div class="card">
+            <div class="card-title">Recent Sessions (all users)</div>
+            <div style="overflow-x:auto">
+              <table class="sessions-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Driver</th>
+                    <th>Started</th>
+                    <th>Alerts</th>
+                    <th>Max Risk</th>
+                  </tr>
+                </thead>
+                <tbody id="recentSessionsBody">
+                  <tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- User management panel -->
+      <div id="panelUsers" class="hidden">
+        <div class="card">
+          <div class="card-title">All Users</div>
+          <div style="overflow-x:auto">
+            <table class="sessions-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersBody">
+                <tr><td colspan="6" style="color:var(--muted)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<div id="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
