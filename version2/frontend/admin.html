@@ -3,68 +3,32 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>D.I.S.H.A. — Admin Dashboard</title>
+  <title>D.I.S.H.A. — Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
-    /* ── Admin-specific styles ──────────────────────────────────────── */
-    .admin-tabs {
-      display: flex; gap: .4rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1.2rem;
-      padding-bottom: .5rem;
-    }
-    .admin-tab {
-      background: none; border: none; color: var(--muted);
-      font-size: .88rem; font-weight: 500; padding: .45rem .9rem;
-      border-radius: 6px; cursor: pointer; transition: all .15s;
-    }
-    .admin-tab:hover  { background: var(--surface2); color: var(--text); }
-    .admin-tab.active { background: var(--accent);   color: #fff; }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: .9rem;
-      margin-bottom: 1.3rem;
-    }
-    .kpi-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem 1.1rem;
-    }
-    .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-    .kpi-val   { font-size: 2rem; font-weight: 700; line-height: 1.1; margin-top: .2rem; }
-    .kpi-sub   { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
-
-    .overview-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 1rem; }
-
-    .search-bar {
-      display: flex; align-items: center; gap: .6rem;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 6px; padding: .45rem .75rem;
-      margin-bottom: .9rem;
-    }
-    .search-bar input {
-      background: none; border: none; color: var(--text);
-      font-size: .88rem; outline: none; flex: 1;
-    }
-    .search-bar input::placeholder { color: var(--muted); }
-
-    .confirm-modal {
-      position: fixed; inset: 0; background: rgba(0,0,0,.65);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 999;
-    }
-    .confirm-box {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 1.8rem;
-      max-width: 400px; width: 90%; text-align: center;
-    }
-    .confirm-box p  { color: var(--muted); font-size: .9rem; margin: .8rem 0 1.4rem; }
-    .confirm-btns   { display: flex; gap: .75rem; justify-content: center; }
+    .admin-tabs{display:flex;gap:.4rem;border-bottom:1px solid var(--border);margin-bottom:1.2rem;padding-bottom:.5rem;}
+    .admin-tab{background:none;border:none;color:var(--muted);font-size:.88rem;font-weight:500;padding:.45rem .9rem;border-radius:6px;cursor:pointer;transition:all .15s;font-family:var(--font);}
+    .admin-tab:hover{background:var(--surface2);color:var(--text);}
+    .admin-tab.active{background:var(--accent);color:#fff;}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.9rem;margin-bottom:1.3rem;}
+    .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;}
+    .kpi-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+    .kpi-val{font-size:2rem;font-weight:700;line-height:1.1;margin-top:.2rem;}
+    .kpi-sub{font-size:.72rem;color:var(--muted);margin-top:.15rem;}
+    .overview-grid{display:grid;grid-template-columns:1fr 1.6fr;gap:1rem;}
+    .search-bar{display:flex;align-items:center;gap:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.45rem .75rem;margin-bottom:.9rem;}
+    .search-bar input{background:none;border:none;color:var(--text);font-size:.88rem;outline:none;flex:1;font-family:var(--font);}
+    .search-bar input::placeholder{color:var(--muted);}
+    /* User detail modal */
+    .detail-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:999;}
+    .detail-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.8rem;max-width:700px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);}
+    .detail-box h3{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;}
+    .confirm-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;}
+    .confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.8rem;max-width:400px;width:90%;text-align:center;}
+    .confirm-box p{color:var(--muted);font-size:.9rem;margin:.8rem 0 1.4rem;}
+    .confirm-btns{display:flex;gap:.75rem;justify-content:center;}
   </style>
 </head>
 <body>
@@ -78,7 +42,6 @@
 </script>
 
 <div class="app-shell">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo"><h1>D.I.S.H.A.</h1><p>Admin Panel</p></div>
     <nav class="sidebar-nav">
@@ -97,18 +60,18 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <div class="main-content">
     <div class="topbar">
       <h2>Admin Dashboard</h2>
-      <div class="topbar-right"><button class="btn-theme" id="btnTheme" title="Toggle theme">🌙</button>
-        <button class="btn btn-ghost" onclick="loadStats();loadUsers();" style="font-size:.8rem">↻ Refresh</button>
+      <div class="topbar-right">
+        <button class="btn-theme" id="btnTheme" title="Toggle theme">🌙</button>
+        <button class="btn btn-ghost" id="btnCleanup" style="font-size:.78rem" title="Fix all stuck sessions">🔧 Fix Stuck Sessions</button>
+        <button class="btn btn-ghost" onclick="loadStats();loadUsers();loadTrend();" style="font-size:.78rem">↻ Refresh</button>
       </div>
     </div>
 
     <div class="page-content">
-
-      <!-- KPI Cards -->
+      <!-- KPI cards -->
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Total Users</div>
@@ -133,80 +96,56 @@
         <button class="admin-tab"        data-panel="panelUsers">👥 Users</button>
       </div>
 
-      <!-- Overview -->
+      <!-- Overview tab -->
       <div id="panelOverview" class="tab-panel">
-        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1rem">
+        <!-- Trend chart (full width) -->
+        <div class="card" style="margin-bottom:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+            <div class="card-title" style="margin-bottom:0">Alert Trend — Last 7 Days</div>
+            <button class="btn btn-ghost" id="btnExportCSV" style="font-size:.78rem">⬇ Export CSV</button>
+          </div>
+          <div id="trendChart" style="min-height:60px">
+            <p style="color:var(--muted);font-size:.82rem">Loading…</p>
+          </div>
+        </div>
+
+        <div class="overview-grid">
           <!-- Alert breakdown -->
           <div class="card">
             <div class="card-title">Alerts by Type</div>
-            <div id="eventBreakdown">
-              <p style="color:var(--muted);font-size:.82rem">Loading…</p>
-            </div>
+            <div id="eventBreakdown"><p style="color:var(--muted);font-size:.82rem">Loading…</p></div>
           </div>
-
-          <!-- Trend chart -->
-          <div class="card full-col" style="margin-bottom:1rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
-              <div class="card-title" style="margin-bottom:0">Alert Trend — Last 7 Days</div>
-              <button class="btn btn-ghost" id="btnExportCSV" style="font-size:.78rem">
-                ⬇ Export CSV
-              </button>
-            </div>
-            <div id="trendChart" style="min-height:60px">
-              <p style="color:var(--muted);font-size:.82rem">Loading…</p>
-            </div>
-          </div>
-
           <!-- Recent sessions -->
           <div class="card">
-            <div class="card-title">Recent Sessions (platform-wide)</div>
+            <div class="card-title">Recent Sessions (all users)</div>
             <div style="overflow-x:auto">
               <table class="sessions-table">
-                <thead>
-                  <tr>
-                    <th>User</th><th>Driver</th><th>Date</th>
-                    <th>Duration</th><th>Alerts</th><th>Risk</th>
-                  </tr>
-                </thead>
-                <tbody id="recentSessionsBody">
-                  <tr><td colspan="6" style="color:var(--muted)">Loading…</td></tr>
-                </tbody>
+                <thead><tr><th>User</th><th>Driver</th><th>Date</th><th>Alerts</th><th>Risk</th></tr></thead>
+                <tbody id="recentSessionsBody"><tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr></tbody>
               </table>
             </div>
             <div style="margin-top:.8rem">
-              <a href="all-sessions.html" class="btn btn-ghost" style="font-size:.8rem">
-                View all sessions →
-              </a>
+              <a href="all-sessions.html" class="btn btn-ghost" style="font-size:.78rem">View all sessions →</a>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Users -->
+      <!-- Users tab -->
       <div id="panelUsers" class="tab-panel hidden">
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem">
-            <div class="card-title" style="margin-bottom:0">User Management</div>
+            <div class="card-title" style="margin-bottom:0">Users — click Details to see individual history</div>
             <span style="font-size:.78rem;color:var(--muted)" id="userCount"></span>
           </div>
-
-          <!-- Search -->
           <div class="search-bar">
             <span style="color:var(--muted)">🔍</span>
             <input id="userSearchInput" type="text" placeholder="Search by name or email…"/>
           </div>
-
           <div style="overflow-x:auto">
             <table class="sessions-table">
-              <thead>
-                <tr>
-                  <th>User</th><th>Role</th><th>Status</th>
-                  <th>Joined</th><th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="usersBody">
-                <tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>
-              </tbody>
+              <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+              <tbody id="usersBody"><tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -216,14 +155,25 @@
   </div>
 </div>
 
-<!-- Events modal -->
-<div class="modal-overlay hidden" id="modalOverlay">
-  <div class="modal" style="max-width:580px">
-    <h3 id="modalTitle">Events</h3>
-    <div id="eventsList" style="max-height:420px;overflow-y:auto;margin-top:.6rem"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnCloseModal">Close</button>
-    </div>
+<!-- User detail modal -->
+<div class="detail-modal hidden" id="userDetailModal">
+  <div class="detail-box">
+    <h3>
+      <span>👤 <span id="userDetailName"></span></span>
+      <button class="btn btn-ghost" id="btnCloseUserDetail" style="padding:.25rem .6rem;font-size:.8rem">✕ Close</button>
+    </h3>
+    <div id="userDetailBody"><p style="color:var(--muted)">Loading…</p></div>
+  </div>
+</div>
+
+<!-- Events sub-modal -->
+<div class="detail-modal hidden" id="eventsModal" style="z-index:1000">
+  <div class="detail-box" style="max-width:560px">
+    <h3>
+      <span id="eventsModalTitle">Events</span>
+      <button class="btn btn-ghost" id="btnCloseEvents" style="padding:.25rem .6rem;font-size:.8rem">✕</button>
+    </h3>
+    <div id="eventsModalBody" style="max-height:400px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -239,8 +189,40 @@
   </div>
 </div>
 
+<!-- Events modal (for overview tab) -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal" style="max-width:580px">
+    <h3 id="modalTitle">Events</h3>
+    <div id="eventsList" style="max-height:420px;overflow-y:auto;margin-top:.6rem"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" id="btnCloseModal">Close</button></div>
+  </div>
+</div>
+
+<!-- recent sessions body (for overview) inline render -->
+<script>
+  // Inline render for recent sessions in overview (doesn't need separate function)
+  async function renderRecentSessions() {
+    try {
+      const s = await apiFetch("/api/admin/stats");
+      document.getElementById("recentSessionsBody").innerHTML =
+        (s.recent_sessions||[]).map(sess=>{
+          const risk=Math.round(sess.max_risk_score||0);
+          const rc=risk<30?"safe":risk<70?"warn":"danger";
+          return `<tr>
+            <td style="font-size:.82rem">${sess.user_name||"—"}</td>
+            <td>${sess.driver_name||"—"}</td>
+            <td style="font-size:.78rem;color:var(--muted)">${new Date(sess.started_at).toLocaleDateString()}</td>
+            <td>${sess.total_alerts||0}</td>
+            <td><span class="risk-pill ${rc}">${risk}%</span></td>
+          </tr>`;
+        }).join("")||'<tr><td colspan="5" style="color:var(--muted);text-align:center">No sessions yet.</td></tr>';
+    } catch(_){}
+  }
+</script>
+
 <div id="toast-container"></div>
 <script src="js/api.js"></script>
 <script src="js/admin.js"></script>
+<script>renderRecentSessions();</script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 // Full monitor page orchestrator:
 //  • 3-phase flow: CALIBRATION → MONITORING → SESSION SUMMARY
 //  • Confidence gating: face-lost state pauses PERCLOS
-//  • YOLOv8-ONNX phone detection (every 5th frame)
+//  • YOLOv8 phone detection (server-side, every 5th frame)
 //  • Fullscreen toggle
 //  • Session notes on stop
 //  • Correct local timestamps
@@ -54,6 +54,7 @@ let animFrameId       = null;
 let stream            = null;
 let modelsReady       = false;
 let phoneDetected     = false;
+let phoneConf         = 0;      // raw YOLOv8 confidence (0 when no phone) — passed to processFrame
 let faceLostFrames    = 0;      // consecutive frames with no face
 const FACE_LOST_THRESHOLD = 15; // frames before "face lost" state
 
@@ -108,12 +109,13 @@ async function detectPhone() {
       body:   JSON.stringify({ frame_b64 }),
     });
 
-    if (result.available) {
-      phoneDetected = result.detected;
-    }
-    // If backend doesn't have ultralytics installed, available=false — just skip silently
+    // Always sync local confidence to the latest result. The backend returns
+    // confidence 0.0 when no phone is found (or available=false), so this
+    // naturally decays phoneConf back to 0 instead of leaving a stale value.
+    phoneConf = result.available ? (result.confidence || 0) : 0;
   } catch (_) {
-    // Non-fatal — phone detection just won't update this frame
+    // Non-fatal — treat a failed/timed-out detect as "no phone this cycle".
+    phoneConf = 0;
   }
 }
 
@@ -150,6 +152,7 @@ async function startMonitoring() {
     frameCount    = 0;
     faceLostFrames = 0;
     phoneDetected  = false;
+    phoneConf      = 0;
 
     // Show UI
     placeholder.classList.add("hidden");
@@ -340,8 +343,16 @@ function processLoop() {
   if (!isMonitoring) return;
 
   const now = performance.now();
-  canvas.width  = video.videoWidth  || 640;
-  canvas.height = video.videoHeight || 480;
+  // Use the canvas element's displayed size for drawing coordinates
+  // This ensures landmarks (normalised 0-1) map correctly onto the visible area
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width > 0) {
+    canvas.width  = rect.width;
+    canvas.height = rect.height;
+  } else {
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+  }
 
   if (video.readyState === HTMLMediaElement.HAVE_ENOUGH_DATA && faceLandmarker) {
     const faceResult = faceLandmarker.detectForVideo(video, now);
@@ -373,12 +384,20 @@ function processLoop() {
         if (frameCount % 5 === 0) detectPhone();
 
         // ── Main detection ───────────────────────────────────────────────
-        const result = processFrame(landmarks, phoneDetected, video, frameCount);
-        drawOverlay(ctx, landmarks, result);
-        updateUI(result);
-
-        if (result.alerts?.length) {
-          result.alerts.forEach(a => handleAlert(a, result));
+        try {
+          const result = processFrame(landmarks, phoneConf, video, frameCount);
+          drawOverlay(ctx, landmarks, result);
+          updateUI(result);
+          if (result.alerts?.length) {
+            result.alerts.forEach(a => handleAlert(a, result));
+          }
+        } catch(err) {
+          // Surface errors visibly instead of silently failing
+          console.error("[DISHA] processFrame error:", err);
+          if (faceStatus) {
+            faceStatus.textContent = "⚠ Error: " + err.message;
+            faceStatus.style.color = "var(--danger)";
+          }
         }
       }
     }
@@ -413,14 +432,14 @@ function drawOverlay(ctx, lm, result) {
   }
 
   // Eyes
-  const eyeCol = result.eyeClosed ? "#ef4444" : "#22c55e";
+  const eyeCol = (result.eyeStatus==="Drowsy"||result.eyeStatus==="Closing") ? "#ef4444" : "#22c55e";
   for (const i of [33,160,158,133,153,144, 362,385,387,263,373,380]) {
     ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.8, 0, Math.PI*2);
     ctx.fillStyle = eyeCol; ctx.fill();
   }
 
   // Mouth
-  const mouthCol = result.isYawning ? "#f59e0b" : "rgba(255,255,255,0.2)";
+  const mouthCol = result.isYawning ? "#f59e0b" : "rgba(255,255,255,0.25)";
   for (const i of [61,291,13,14]) {
     ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.5, 0, Math.PI*2);
     ctx.fillStyle = mouthCol; ctx.fill();
@@ -437,15 +456,15 @@ function drawOverlay(ctx, lm, result) {
   ctx.fillStyle = col; ctx.fill();
 
   // Distraction progress bar (bottom)
-  if (result.consecutiveDistrFrames > 5) {
-    const pct = Math.min(result.consecutiveDistrFrames/50, 1);
+  if (result.headDistrCount > 5) {
+    const pct = Math.min(result.headDistrCount/50, 1);
     ctx.fillStyle = `rgba(239,68,68,${0.3+pct*0.5})`;
     ctx.fillRect(0, H-5, W*pct, 5);
   }
 
   // Eye closure progress bar (top)
-  if (result.consecutiveClosedFrames > 5) {
-    const pct = Math.min(result.consecutiveClosedFrames/48, 1);
+  if (result.drowsyCount > 5) {
+    const pct = Math.min(result.drowsyCount/15, 1);
     ctx.fillStyle = `rgba(245,158,11,${0.3+pct*0.5})`;
     ctx.fillRect(0, 0, W*pct, 4);
   }
@@ -467,26 +486,26 @@ function updateUI(result) {
   badgeLowLight?.classList.toggle("hidden", !result.lowLightMode);
   updateStatusBadge(result.riskScore ?? 0);
 
-  // Eye status — human readable, not raw EAR number
+  // Eye status — human readable
   if (eyeStatusEl) {
     const s = result.eyeStatus || "--";
     eyeStatusEl.textContent = s;
-    eyeStatusEl.className = `metric-value ${s==="Open"?"ok":s==="Closing"?"warn":"danger"}`;
+    eyeStatusEl.className   = `metric-value ${s==="Open"?"ok":s==="Closing"?"warn":"danger"}`;
   }
   // Eye gauge: shows how close to threshold (inverted — lower EAR = fuller bar)
   const earPct = result._ear != null
-    ? Math.max(0, Math.min(100, ((result._earThreshold+0.15-result._ear)/0.20)*100))
+    ? Math.max(0, Math.min(100, ((result._effectiveEARThresh+0.12 - result._ear)/0.18)*100))
     : 0;
-  const earCls = result.eyeClosed ? "danger" : earPct > 60 ? "warn" : "ok";
+  const earCls = result.eyeStatus==="Drowsy" ? "danger" : earPct > 60 ? "warn" : "ok";
   setGauge(eyeGauge, earPct, earCls);
 
   // PERCLOS
   if (perclosValue) {
-    const pPct = Math.round((result.perclos||0)*100);
-    const cls  = pPct >= 15 ? "danger" : pPct >= 8 ? "warn" : "ok";
+    const pPct = Math.round(result.perclosPct || (result.perclos||0)*100);
+    const cls  = pPct >= 15 ? "danger" : pPct >= 8 ? "warn" : "ok";  // pPct is 0-100
     perclosValue.textContent = `${pPct}%`;
     perclosValue.className   = `metric-value ${cls}`;
-    setGauge(perclosGauge, Math.min(100,(result.perclos||0)/0.30*100), cls);
+    setGauge(perclosGauge, Math.min(100, (pPct/15)*100), cls);
   }
 
   // Yawn — human readable
@@ -495,9 +514,7 @@ function updateUI(result) {
     yawnStatusEl.textContent = s;
     yawnStatusEl.className = `metric-value ${s==="Yawning"?"warn":"ok"}`;
   }
-  const marPct = result._mar != null
-    ? Math.min(100, (result._mar / (result._marThreshold||0.55) * 0.8) * 100)
-    : 0;
+  const marPct = result._mar != null ? Math.min(100,(result._mar/0.50)*100) : 0;
   setGauge(yawnGauge, marPct, result.isYawning ? "warn" : "ok");
 
   // Head pose — yaw only (pitch hidden per design decision)
@@ -507,7 +524,7 @@ function updateUI(result) {
       : "--";
   }
   if (poseStatus) {
-    const distrPct = Math.min(100, Math.round((result.consecutiveDistrFrames||0)/50*100));
+    const distrPct = Math.min(100, Math.round((result.headDistrCount||0)/50*100));
     poseStatus.textContent = result.isDistracted
       ? "⚠ Distracted"
       : distrPct > 10 ? `Off-road ${distrPct}%` : "Forward ✓";
@@ -516,8 +533,25 @@ function updateUI(result) {
 
   // Phone
   if (phoneStatus) {
-    phoneStatus.textContent = result.phoneFlag ? "Detected!" : "None";
-    phoneStatus.className   = `metric-value ${result.phoneFlag?"danger":"ok"}`;
+    phoneStatus.textContent = result.phoneDetected ? `Detected (${(result.phoneConf*100).toFixed(0)}%)` : "None";
+    phoneStatus.className   = `metric-value ${result.phoneDetected?"danger":"ok"}`;
+  }
+
+  // LSTM temporal scores (if elements exist)
+  const etEl = document.getElementById("eyeTemporal");
+  const mtEl = document.getElementById("mouthTemporal");
+  const htEl = document.getElementById("headTemporal");
+  if (etEl && result.eyeTemporal != null) {
+    etEl.textContent = result.eyeTemporal.toFixed(2);
+    etEl.style.color = result.eyeTemporal > 0.35 ? "var(--danger)" : result.eyeTemporal > 0.2 ? "var(--warn)" : "var(--safe)";
+  }
+  if (mtEl && result.mouthTemporal != null) {
+    mtEl.textContent = result.mouthTemporal.toFixed(2);
+    mtEl.style.color = result.mouthTemporal > 0.4 ? "var(--warn)" : "var(--safe)";
+  }
+  if (htEl && result.headTemporal != null) {
+    htEl.textContent = result.headTemporal.toFixed(2);
+    htEl.style.color = result.headTemporal > 0.4 ? "var(--warn)" : "var(--safe)";
   }
 }
 
@@ -553,7 +587,7 @@ async function handleAlert(alert, metrics) {
           mar:        metrics._mar,
           yaw:        metrics.yaw,
           pitch:      null, // pitch not stored — unreliable
-          perclos:    metrics.perclos,
+          perclos:    (metrics.perclosPct||0)/100,
           risk_score: metrics.riskScore,
         }),
       });

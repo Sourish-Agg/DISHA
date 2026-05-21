@@ -1,53 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>D.I.S.H.A. — Create Account</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--bg:#050a0f;--surface:#0a1520;--border:#152840;--accent:#00c8f0;--text:#b0d8f0;--muted:#3d6880;--danger:#ef4444;--grid:rgba(0,200,240,0.025);}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:48px 48px;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2.5rem 2rem;width:100%;max-width:400px;box-shadow:0 0 60px rgba(0,200,240,0.06);}
+    .logo{text-align:center;margin-bottom:1.8rem;}
+    .logo-icon{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1.5px solid var(--accent);border-radius:7px;font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--accent);box-shadow:0 0 20px rgba(0,200,240,0.18);margin-bottom:.6rem;}
+    .logo h1{font-size:1.3rem;letter-spacing:.12em;color:#e0f5ff;margin-bottom:.15rem;}
+    .logo p{font-size:.7rem;color:var(--muted);letter-spacing:.1em;font-family:'Share Tech Mono',monospace;}
+    .form-group{margin-bottom:.9rem;}
+    label{display:block;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;}
+    input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:.62rem .8rem;color:#e0f5ff;font-size:.9rem;outline:none;transition:border-color .2s;font-family:'Inter',sans-serif;}
+    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,200,240,0.08);}
+    input::placeholder{color:var(--muted);}
+    #formError{display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);color:#ef4444;padding:.6rem .9rem;border-radius:6px;font-size:.82rem;margin-bottom:.9rem;text-align:center;}
+    .btn{width:100%;padding:.72rem;background:transparent;border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:.88rem;font-weight:600;letter-spacing:.05em;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;margin-top:.4rem;}
+    .btn:hover:not(:disabled){background:rgba(0,200,240,0.1);box-shadow:0 0 20px rgba(0,200,240,0.15);}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .switch{text-align:center;margin-top:1.1rem;font-size:.82rem;color:var(--muted);}
+    .switch a{color:var(--accent);text-decoration:none;}
+    .note{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.8rem;padding:.5rem;border:1px solid var(--border);border-radius:5px;background:rgba(0,200,240,0.03);}
+  </style>
 </head>
 <body>
-  <div class="auth-wrapper">
-    <div class="auth-card">
-
-      <div class="auth-logo">
-        <h1>D.I.S.H.A.</h1>
-        <p>Create your account</p>
-      </div>
-
-      <form id="registerForm">
-        <div class="form-group">
-          <label for="name">Full Name</label>
-          <input id="name" type="text" placeholder="Jane Doe" required autocomplete="name" />
-        </div>
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="you@example.com" required autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input id="password" type="password" placeholder="Min. 6 characters" required autocomplete="new-password" />
-        </div>
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input id="confirmPassword" type="password" placeholder="Repeat password" required autocomplete="new-password" />
-        </div>
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top:.5rem">
-          Create Account
-        </button>
-      </form>
-
-      <p class="auth-switch">
-        Already have an account? <a href="login.html">Sign in</a>
-      </p>
-
-    </div>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">AI</div>
+    <h1>D.I.S.H.A.</h1>
+    <p>Create your account</p>
   </div>
 
-  <div id="toast-container"></div>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
+  <div id="formError"></div>
+
+  <form id="registerForm">
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input id="name" type="text" placeholder="Your name" required autocomplete="name"/>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" required autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Min. 6 characters" required autocomplete="new-password"/>
+    </div>
+    <div class="form-group">
+      <label for="confirmPassword">Confirm Password</label>
+      <input id="confirmPassword" type="password" placeholder="Repeat password" required autocomplete="new-password"/>
+    </div>
+    <button type="submit" class="btn">Create Account</button>
+  </form>
+
+  <div class="note">First account registered becomes Admin</div>
+  <div class="switch">Already have an account? <a href="login.html">Sign in</a></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
 </body>
 </html>

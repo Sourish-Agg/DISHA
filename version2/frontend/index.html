@@ -212,7 +212,33 @@
               <span class="metric-label">Phone in frame</span>
               <span class="metric-value ok" id="phoneStatus">---</span>
             </div>
-            <p style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Powered by YOLOv8n</p>
+            <p style="font-size:.7rem;color:var(--muted);margin-top:.4rem">YOLOv8n · confidence &gt;0.65</p>
+          </div>
+
+          <!-- LSTM temporal scores -->
+          <div class="card">
+            <div class="card-title">🧠 Temporal Scores</div>
+            <p style="font-size:.7rem;color:var(--muted);margin-bottom:.6rem">
+              Drowsy alert needs ≥2 of 3 cues active simultaneously.
+            </p>
+            <div class="metric-item">
+              <div class="metric-header">
+                <span class="metric-label">👁 Eye closure (≥0.35 = cue active)</span>
+                <span class="metric-value ok" id="eyeTemporal">--</span>
+              </div>
+            </div>
+            <div class="metric-item" style="margin-top:.5rem">
+              <div class="metric-header">
+                <span class="metric-label">😮 Mouth open</span>
+                <span class="metric-value ok" id="mouthTemporal">--</span>
+              </div>
+            </div>
+            <div class="metric-item" style="margin-top:.5rem">
+              <div class="metric-header">
+                <span class="metric-label">🔄 Head off-road</span>
+                <span class="metric-value ok" id="headTemporal">--</span>
+              </div>
+            </div>
           </div>
 
         </div>

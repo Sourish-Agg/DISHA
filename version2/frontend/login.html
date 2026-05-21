@@ -1,45 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>D.I.S.H.A. — Sign In</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#050a0f; --surface:#0a1520; --border:#152840;
+      --accent:#00c8f0; --text:#b0d8f0; --muted:#3d6880;
+      --danger:#ef4444; --safe:#00f5a0;
+      --grid:rgba(0,200,240,0.025);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Inter',sans-serif; min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      background-image:
+        linear-gradient(var(--grid) 1px,transparent 1px),
+        linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+      background-size:48px 48px;
+    }
+    .card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:10px; padding:2.5rem 2rem; width:100%; max-width:400px;
+      box-shadow:0 0 60px rgba(0,200,240,0.06);
+    }
+    .logo { text-align:center; margin-bottom:2rem; }
+    .logo-icon {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:52px; height:52px; border:1.5px solid var(--accent); border-radius:8px;
+      font-family:'Share Tech Mono',monospace; font-size:16px; color:var(--accent);
+      box-shadow:0 0 24px rgba(0,200,240,0.2); margin-bottom:.8rem;
+      animation:pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse{0%,100%{box-shadow:0 0 24px rgba(0,200,240,0.2)}50%{box-shadow:0 0 40px rgba(0,200,240,0.45)}}
+    .logo h1 { font-size:1.5rem; letter-spacing:.15em; color:#e0f5ff; margin-bottom:.2rem; }
+    .logo p  { font-size:.72rem; color:var(--muted); letter-spacing:.12em; font-family:'Share Tech Mono',monospace; }
+
+    .form-group { margin-bottom:1rem; }
+    label {
+      display:block; font-size:.72rem; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.08em; margin-bottom:.35rem;
+    }
+    input {
+      width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border);
+      border-radius:6px; padding:.65rem .85rem; color:#e0f5ff; font-size:.92rem;
+      outline:none; transition:border-color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,200,240,0.08); }
+    input::placeholder { color:var(--muted); }
+
+    /* Inline error box */
+    #formError {
+      display:none;
+      background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35);
+      color:#ef4444; padding:.6rem .9rem; border-radius:6px;
+      font-size:.82rem; margin-bottom:.9rem; text-align:center;
+    }
+
+    .btn {
+      width:100%; padding:.75rem; background:transparent;
+      border:1px solid var(--accent); border-radius:6px;
+      color:var(--accent); font-size:.9rem; font-weight:600;
+      letter-spacing:.05em; cursor:pointer; transition:all .2s;
+      font-family:'Inter',sans-serif; margin-top:.5rem;
+    }
+    .btn:hover:not(:disabled) { background:rgba(0,200,240,0.1); box-shadow:0 0 20px rgba(0,200,240,0.15); }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+
+    .switch { text-align:center; margin-top:1.2rem; font-size:.82rem; color:var(--muted); }
+    .switch a { color:var(--accent); text-decoration:none; }
+    .switch a:hover { text-decoration:underline; }
+  </style>
 </head>
 <body>
-  <div class="auth-wrapper">
-    <div class="auth-card">
-
-      <div class="auth-logo">
-        <h1>D.I.S.H.A.</h1>
-        <p>Driver Insight & Safety Heuristics Assistant</p>
-      </div>
-
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="you@example.com" required autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input id="password" type="password" placeholder="••••••••" required autocomplete="current-password" />
-        </div>
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top:.5rem">
-          Sign In
-        </button>
-      </form>
-
-      <p class="auth-switch">
-        Don't have an account? <a href="register.html">Create one</a>
-      </p>
-
-    </div>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">AI</div>
+    <h1>D.I.S.H.A.</h1>
+    <p>Driver Insight &amp; Safety Heuristics Assistant</p>
   </div>
 
-  <div id="toast-container"></div>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
+  <div id="formError"></div>
+
+  <form id="loginForm">
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" required autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" required autocomplete="current-password"/>
+    </div>
+    <button type="submit" class="btn">Sign In</button>
+  </form>
+
+  <div class="switch">No account? <a href="register.html">Create one</a></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
 </body>
 </html>
