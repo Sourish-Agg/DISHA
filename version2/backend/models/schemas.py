@@ -27,6 +27,10 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=60)
     email: str = Field(..., min_length=3, max_length=120)
     password: str = Field(..., min_length=6, max_length=128)
+    # Optional invite code. If provided, the user joins that organization as a
+    # regular user. If omitted, a brand-new organization is created and this
+    # user becomes its admin.
+    org_code: Optional[str] = Field(None, min_length=4, max_length=12)
 
     @field_validator("email")
     @classmethod
@@ -35,6 +39,11 @@ class RegisterRequest(BaseModel):
         if not EMAIL_RE.match(v):
             raise ValueError("Enter a valid email address (e.g. user@example.com)")
         return v
+
+    @field_validator("org_code")
+    @classmethod
+    def normalize_org_code(cls, v):
+        return v.strip().upper() if v else v
 
 
 class LoginRequest(BaseModel):
@@ -53,6 +62,25 @@ class TokenResponse(BaseModel):
     role: str
     name: str
     user_id: str
+    org_id: str
+    org_name: str
+    org_code: str
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ORGANIZATION (tenant)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class OrganizationOut(BaseModel):
+    id: str
+    name: str
+    org_code: str
+    created_at: datetime
+    member_count: int = 0
+
+
+class OrgUpdateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=80)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -65,6 +93,7 @@ class UserOut(BaseModel):
     name: str
     email: str
     role: Literal["user", "admin"]
+    org_id: str
     created_at: datetime
     is_active: bool
 

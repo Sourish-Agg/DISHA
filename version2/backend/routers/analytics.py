@@ -21,9 +21,10 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 # ── Alert trend — past 7 days ─────────────────────────────────────────────────
 @router.get("/trend")
-async def alert_trend(_admin=Depends(require_admin)):
-    """Returns alert counts per day for the last 7 days, grouped by type."""
+async def alert_trend(admin=Depends(require_admin)):
+    """Returns alert counts per day for the last 7 days, grouped by type (this org)."""
     db  = get_db()
+    org_id = admin["org_id"]
     now = datetime.now(timezone.utc)
 
     result = {}
@@ -33,7 +34,7 @@ async def alert_trend(_admin=Depends(require_admin)):
         label     = day_start.strftime("%d %b")
 
         pipeline = [
-            {"$match": {"timestamp": {"$gte": day_start, "$lt": day_end}}},
+            {"$match": {"org_id": org_id, "timestamp": {"$gte": day_start, "$lt": day_end}}},
             {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},
         ]
         agg = await db["events"].aggregate(pipeline).to_list(20)
@@ -44,13 +45,13 @@ async def alert_trend(_admin=Depends(require_admin)):
 
 # ── CSV export ────────────────────────────────────────────────────────────────
 @router.get("/export/csv")
-async def export_csv(_admin=Depends(require_admin)):
+async def export_csv(admin=Depends(require_admin)):
     """
-    Download all events as a CSV file.
+    Download this organization's events as a CSV file.
     Streams the response so large datasets don't blow memory.
     """
     db     = get_db()
-    events = await db["events"].find({}).sort("timestamp", 1).to_list(50000)
+    events = await db["events"].find({"org_id": admin["org_id"]}).sort("timestamp", 1).to_list(50000)
 
     def generate():
         buf = io.StringIO()
@@ -103,10 +104,12 @@ async def session_summary(
         from fastapi import HTTPException
         raise HTTPException(404, "Session not found")
 
-    # Auth check
+    # Auth check: same org, and (admin OR owner)
+    from fastapi import HTTPException
+    if session.get("org_id") != current_user["org_id"]:
+        raise HTTPException(403, "Not authorised")
     if (current_user["role"] != "admin"
             and str(session["user_id"]) != current_user["sub"]):
-        from fastapi import HTTPException
         raise HTTPException(403, "Not authorised")
 
     events = await db["events"].find(
@@ -150,4 +153,4 @@ async def session_summary(
         "breakdown":        breakdown,
         "timeline":         timeline,
         "peak":             peak,
-    }
+    }   

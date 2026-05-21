@@ -20,14 +20,21 @@ async def connect_db() -> None:
     db = _client[settings.MONGO_DB_NAME]
 
     # ── Indexes ──────────────────────────────────────────────────────────────
-    # users: unique email
-    await db["users"].create_index("email", unique=True)
+    # organizations: unique invite code
+    await db["organizations"].create_index("org_code", unique=True)
 
-    # sessions: fast lookup by user
+    # users: email unique WITHIN an organization (same email may exist in
+    # different tenants), plus a fast lookup by org.
+    await db["users"].create_index([("org_id", 1), ("email", 1)], unique=True)
+    await db["users"].create_index("org_id")
+
+    # sessions: scoped by org and user
+    await db["sessions"].create_index("org_id")
     await db["sessions"].create_index("user_id")
     await db["sessions"].create_index("started_at")
 
-    # events: fast lookup by session and timestamp
+    # events: scoped by org and session
+    await db["events"].create_index("org_id")
     await db["events"].create_index("session_id")
     await db["events"].create_index("timestamp")
 

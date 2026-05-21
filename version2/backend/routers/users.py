@@ -34,6 +34,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         name=doc["name"],
         email=doc["email"],
         role=doc["role"],
+        org_id=doc["org_id"],
         created_at=doc["created_at"],
         is_active=doc.get("is_active", True),
     )

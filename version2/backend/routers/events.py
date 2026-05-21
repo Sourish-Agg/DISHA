@@ -54,6 +54,9 @@ async def log_event(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
+    # Tenant guard: session must be in the caller's org; users only their own.
+    if session.get("org_id") != current_user["org_id"]:
+        raise HTTPException(status_code=403, detail="Not authorised.")
     if (
         current_user["role"] != "admin"
         and str(session["user_id"]) != current_user["sub"]
@@ -61,6 +64,7 @@ async def log_event(
         raise HTTPException(status_code=403, detail="Not authorised.")
 
     doc = {
+        "org_id": current_user["org_id"],
         "session_id": body.session_id,
         "event_type": body.event_type,
         "ear": body.ear,
@@ -101,6 +105,8 @@ async def get_events_for_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
+    if session.get("org_id") != current_user["org_id"]:
+        raise HTTPException(status_code=403, detail="Not authorised.")
     if (
         current_user["role"] != "admin"
         and str(session["user_id"]) != current_user["sub"]

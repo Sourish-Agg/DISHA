@@ -24,7 +24,7 @@ async def get_current_user(
             detail="Invalid or expired token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return payload  # {"sub": user_id, "email": ..., "role": ..., "name": ...}
+    return payload  # {"sub": user_id, "email": ..., "role": ..., "name": ..., "org_id": ...}
 
 
 async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:

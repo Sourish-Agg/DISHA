@@ -12,6 +12,20 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
 
 
+def _authorize_session(session: dict, user: dict) -> None:
+    """
+    Tenant + ownership guard.
+      • The session must belong to the caller's organization.
+      • A regular user may only touch their own sessions; an admin may touch
+        any session WITHIN their own organization (never another tenant's).
+    Raises 403 on any violation. (404 is handled by the caller.)
+    """
+    if session.get("org_id") != user["org_id"]:
+        raise HTTPException(403, "Not authorised.")
+    if user["role"] != "admin" and str(session["user_id"]) != user["sub"]:
+        raise HTTPException(403, "Not authorised.")
+
+
 def _fmt(doc: dict) -> SessionOut:
     return SessionOut(
         id=str(doc["_id"]),
@@ -33,6 +47,7 @@ async def start_session(
 ):
     db = get_db()
     doc = {
+        "org_id":          current_user["org_id"],
         "user_id":         ObjectId(current_user["sub"]),
         "driver_name":     body.driver_name or current_user.get("name", "Driver"),
         "started_at":      datetime.now(timezone.utc),
@@ -63,9 +78,7 @@ async def end_session(
     session = await db["sessions"].find_one({"_id": oid})
     if not session:
         raise HTTPException(404, "Session not found.")
-    if (current_user["role"] != "admin"
-            and str(session["user_id"]) != current_user["sub"]):
-        raise HTTPException(403, "Not authorised.")
+    _authorize_session(session, current_user)
 
     # If already ended, just return current state instead of erroring —
     # this prevents the frontend from getting a 409 and losing the summary
@@ -74,7 +87,13 @@ async def end_session(
         return _fmt(session)
 
     ended_at = datetime.now(timezone.utc)
-    duration = (ended_at - session["started_at"]).total_seconds()
+    # MongoDB may return started_at as naive (no tzinfo). Treat it as UTC
+    # so the subtraction doesn't raise "can't subtract offset-naive and
+    # offset-aware datetimes".
+    started_at = session["started_at"]
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    duration = (ended_at - started_at).total_seconds()
 
     total_alerts = await db["events"].count_documents({"session_id": session_id})
     agg = await db["events"].aggregate([
@@ -113,8 +132,11 @@ async def list_sessions(
     limit: int = 50,
 ):
     db    = get_db()
-    query = {} if current_user["role"] == "admin" \
-            else {"user_id": ObjectId(current_user["sub"])}
+    # Admin → all sessions in their organization. User → only their own.
+    if current_user["role"] == "admin":
+        query = {"org_id": current_user["org_id"]}
+    else:
+        query = {"org_id": current_user["org_id"], "user_id": ObjectId(current_user["sub"])}
     docs  = await db["sessions"].find(query).sort("started_at", -1).limit(limit).to_list(limit)
     return [_fmt(d) for d in docs]
 
@@ -132,7 +154,5 @@ async def get_session(
     session = await db["sessions"].find_one({"_id": oid})
     if not session:
         raise HTTPException(404, "Session not found.")
-    if (current_user["role"] != "admin"
-            and str(session["user_id"]) != current_user["sub"]):
-        raise HTTPException(403, "Not authorised.")
+    _authorize_session(session, current_user)
     return _fmt(session)

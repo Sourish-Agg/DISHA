@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 10080  # 7 days
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5500,http://127.0.0.1:5500"
+    # Default "*" allows any origin during development. For production,
+    # set CORS_ORIGINS to a comma-separated whitelist in .env, e.g.:
+    #   CORS_ORIGINS=https://app.disha.io,https://admin.disha.io
+    CORS_ORIGINS: str = "*"
 
     # App
     APP_ENV: str = "development"
@@ -26,6 +29,8 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         """Return CORS origins as a Python list."""
+        if self.CORS_ORIGINS.strip() == "*":
+            return ["*"]
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
 
 

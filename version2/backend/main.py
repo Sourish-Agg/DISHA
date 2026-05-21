@@ -16,7 +16,7 @@ from core.config import settings
 from core.database import connect_db, close_db
 
 # Routers
-from routers import auth, users, sessions, events, analytics, admin, phone_detect
+from routers import auth, users, sessions, events, analytics, admin, phone_detect, org
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,10 +54,17 @@ app = FastAPI(
 )
 
 # ── CORS ───────────────────────────────────────────────────────────────────────
+# IMPORTANT: allow_origins=["*"] + allow_credentials=True is INVALID per the
+# CORS spec. Starlette's CORSMiddleware silently adds NO headers in that case,
+# which is exactly the bug we hit. Fix: when origins is wildcard, credentials
+# must be False. Bearer-token auth still works — credentials=True is only
+# needed for cookie-based auth.
+_origins = settings.cors_origins_list
+_is_wildcard = _origins == ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=not _is_wildcard,  # False when "*", True when specific
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -65,6 +72,7 @@ app.add_middleware(
 # ── Routers ─────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(org.router)
 app.include_router(sessions.router)
 app.include_router(events.router)
 app.include_router(analytics.router)

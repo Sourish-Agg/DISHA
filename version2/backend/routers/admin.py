@@ -1,9 +1,10 @@
 # backend/routers/admin.py
-# Admin-only endpoints:
-#   GET    /api/admin/stats          → platform overview stats
-#   GET    /api/admin/users          → list all users
+# Admin-only endpoints (ALL scoped to the admin's own organization):
+#   GET    /api/admin/stats          → org overview stats
+#   GET    /api/admin/users          → list users in this org
 #   PATCH  /api/admin/users/{id}     → update user role / active status
 #   DELETE /api/admin/users/{id}     → delete a user and all their data
+#   POST   /api/admin/cleanup-sessions → close stuck sessions in this org
 
 import logging
 from typing import List
@@ -25,30 +26,34 @@ def _format_user(doc: dict) -> UserOut:
         name=doc["name"],
         email=doc["email"],
         role=doc["role"],
+        org_id=doc["org_id"],
         created_at=doc["created_at"],
         is_active=doc.get("is_active", True),
     )
 
 
 @router.get("/stats", response_model=AdminStats)
-async def get_stats(_admin=Depends(require_admin)):
-    """Platform-wide statistics for the admin dashboard."""
+async def get_stats(admin=Depends(require_admin)):
+    """Organization-wide statistics for the admin dashboard."""
     db = get_db()
+    org_id = admin["org_id"]
 
-    total_users = await db["users"].count_documents({})
-    total_sessions = await db["sessions"].count_documents({})
-    total_events = await db["events"].count_documents({})
+    total_users = await db["users"].count_documents({"org_id": org_id})
+    total_sessions = await db["sessions"].count_documents({"org_id": org_id})
+    total_events = await db["events"].count_documents({"org_id": org_id})
 
-    # Events grouped by type
+    # Events grouped by type (this org only)
     pipeline = [
+        {"$match": {"org_id": org_id}},
         {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
     ]
     type_agg = await db["events"].aggregate(pipeline).to_list(20)
     events_by_type = {item["_id"]: item["count"] for item in type_agg}
 
-    # 10 most recent sessions with user names
+    # 10 most recent sessions in this org, with user names
     recent_pipeline = [
+        {"$match": {"org_id": org_id}},
         {"$sort": {"started_at": -1}},
         {"$limit": 10},
         {
@@ -89,10 +94,10 @@ async def get_stats(_admin=Depends(require_admin)):
 
 
 @router.get("/users", response_model=List[UserOut])
-async def list_users(_admin=Depends(require_admin)):
-    """List every registered user."""
+async def list_users(admin=Depends(require_admin)):
+    """List every user in the admin's organization."""
     db = get_db()
-    docs = await db["users"].find({}).sort("created_at", -1).to_list(500)
+    docs = await db["users"].find({"org_id": admin["org_id"]}).sort("created_at", -1).to_list(500)
     return [_format_user(d) for d in docs]
 
 
@@ -102,12 +107,17 @@ async def update_user(
     body: UserUpdateRequest,
     admin=Depends(require_admin),
 ):
-    """Update a user's name, role, or active status."""
+    """Update a user's name, role, or active status (same org only)."""
     db = get_db()
     try:
         oid = ObjectId(user_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid user ID.")
+
+    # Tenant guard: target must exist AND be in the admin's organization.
+    target = await db["users"].find_one({"_id": oid})
+    if not target or target.get("org_id") != admin["org_id"]:
+        raise HTTPException(status_code=404, detail="User not found.")
 
     # Prevent admin from accidentally demoting themselves
     if user_id == admin["sub"] and body.role == "user":
@@ -118,7 +128,7 @@ async def update_user(
         raise HTTPException(status_code=400, detail="No fields to update.")
 
     result = await db["users"].find_one_and_update(
-        {"_id": oid},
+        {"_id": oid, "org_id": admin["org_id"]},
         {"$set": update_fields},
         return_document=True,
     )
@@ -131,8 +141,9 @@ async def update_user(
 
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(user_id: str, admin=Depends(require_admin)):
-    """Delete a user and all their sessions and events."""
+    """Delete a user and all their sessions and events (same org only)."""
     db = get_db()
+    org_id = admin["org_id"]
     try:
         oid = ObjectId(user_id)
     except Exception:
@@ -141,18 +152,19 @@ async def delete_user(user_id: str, admin=Depends(require_admin)):
     if user_id == admin["sub"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account.")
 
-    user = await db["users"].find_one({"_id": oid})
+    # Tenant guard: target must be in the admin's organization.
+    user = await db["users"].find_one({"_id": oid, "org_id": org_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Cascade delete: events → sessions → user
-    sessions = await db["sessions"].find({"user_id": oid}).to_list(1000)
+    # Cascade delete: events → sessions → user (all scoped to this org)
+    sessions = await db["sessions"].find({"user_id": oid, "org_id": org_id}).to_list(1000)
     session_ids = [str(s["_id"]) for s in sessions]
 
     if session_ids:
-        await db["events"].delete_many({"session_id": {"$in": session_ids}})
-    await db["sessions"].delete_many({"user_id": oid})
-    await db["users"].delete_one({"_id": oid})
+        await db["events"].delete_many({"session_id": {"$in": session_ids}, "org_id": org_id})
+    await db["sessions"].delete_many({"user_id": oid, "org_id": org_id})
+    await db["users"].delete_one({"_id": oid, "org_id": org_id})
 
     logger.info("Admin %s deleted user %s and %d sessions", admin["email"], user_id, len(session_ids))
 
@@ -165,16 +177,20 @@ async def cleanup_stuck_sessions(_admin=Depends(require_admin)):
     """
     from datetime import datetime, timezone
     db  = get_db()
+    org_id = _admin["org_id"]
     now = datetime.now(timezone.utc)
 
-    stuck = await db["sessions"].find({"ended_at": None}).to_list(1000)
+    stuck = await db["sessions"].find({"ended_at": None, "org_id": org_id}).to_list(1000)
     fixed = 0
     for s in stuck:
         sid      = str(s["_id"])
-        duration = (now - s["started_at"]).total_seconds()
-        total_alerts = await db["events"].count_documents({"session_id": sid})
+        sa = s["started_at"]
+        if sa.tzinfo is None:
+            sa = sa.replace(tzinfo=timezone.utc)
+        duration = (now - sa).total_seconds()
+        total_alerts = await db["events"].count_documents({"session_id": sid, "org_id": org_id})
         agg = await db["events"].aggregate([
-            {"$match": {"session_id": sid}},
+            {"$match": {"session_id": sid, "org_id": org_id}},
             {"$group": {"_id": None, "max_risk": {"$max": "$risk_score"}}},
         ]).to_list(1)
         max_risk = agg[0]["max_risk"] if agg else 0.0
