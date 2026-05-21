@@ -56,10 +56,14 @@
       <label for="confirmPassword">Confirm Password</label>
       <input id="confirmPassword" type="password" placeholder="Repeat password" required autocomplete="new-password"/>
     </div>
+    <div class="form-group">
+      <label for="orgCode">Organization Code <span style="text-transform:none;color:var(--muted)">(optional)</span></label>
+      <input id="orgCode" type="text" placeholder="Leave blank to create a new org" autocomplete="off" maxlength="12" style="text-transform:uppercase"/>
+    </div>
     <button type="submit" class="btn">Create Account</button>
   </form>
 
-  <div class="note">First account registered becomes Admin</div>
+  <div class="note">Have an invite code? Enter it to join that organization. Leave it blank to create your own — you&#39;ll become its admin.</div>
   <div class="switch">Already have an account? <a href="login.html">Sign in</a></div>
 </div>
 

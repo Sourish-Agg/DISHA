@@ -215,21 +215,22 @@
             <p style="font-size:.7rem;color:var(--muted);margin-top:.4rem">YOLOv8n · confidence &gt;0.65</p>
           </div>
 
-          <!-- LSTM temporal scores -->
+          <!-- Temporal scores + multi-cue drowsiness -->
           <div class="card">
-            <div class="card-title">🧠 Temporal Scores</div>
+            <div class="card-title">🧠 Multi-Cue Drowsiness Gate</div>
             <p style="font-size:.7rem;color:var(--muted);margin-bottom:.6rem">
-              Drowsy alert needs ≥2 of 3 cues active simultaneously.
+              Drowsy alert requires ≥2 of 3 independent cues active simultaneously.
+              Normal blinks only trip 0 cues — eliminating false positives.
             </p>
             <div class="metric-item">
               <div class="metric-header">
-                <span class="metric-label">👁 Eye closure (≥0.35 = cue active)</span>
+                <span class="metric-label">👁 Cue 1: Eye closure temporal (≥0.35)</span>
                 <span class="metric-value ok" id="eyeTemporal">--</span>
               </div>
             </div>
             <div class="metric-item" style="margin-top:.5rem">
               <div class="metric-header">
-                <span class="metric-label">😮 Mouth open</span>
+                <span class="metric-label">😮 Mouth open (yawn temporal)</span>
                 <span class="metric-value ok" id="mouthTemporal">--</span>
               </div>
             </div>
@@ -238,6 +239,15 @@
                 <span class="metric-label">🔄 Head off-road</span>
                 <span class="metric-value ok" id="headTemporal">--</span>
               </div>
+            </div>
+            <div class="metric-item" style="margin-top:.7rem;padding-top:.5rem;border-top:1px solid var(--border)">
+              <div class="metric-header">
+                <span class="metric-label">👁 Blink rate</span>
+                <span class="metric-value ok" id="blinkRate">--</span>
+              </div>
+              <p style="font-size:.65rem;color:var(--muted);margin-top:.2rem">
+                Normal: 10–15/min · Slow blinks (&gt;300ms) = fatigue
+              </p>
             </div>
           </div>
 

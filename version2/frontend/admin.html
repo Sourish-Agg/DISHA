@@ -43,7 +43,15 @@
 
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="sidebar-logo"><h1>D.I.S.H.A.</h1><p>Admin Panel</p></div>
+    <div class="sidebar-logo"><h1>D.I.S.H.A.</h1><p>Admin Panel</p>
+      <div id="orgBadge" style="margin-top:.6rem;padding:.5rem .6rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:.72rem;color:var(--muted)">
+        <div id="orgName" style="color:var(--text);font-weight:600;font-size:.8rem">—</div>
+        <div style="margin-top:.25rem">Invite code:
+          <span id="orgCode" style="font-family:var(--font-mono,monospace);color:var(--accent);letter-spacing:.05em">—</span>
+          <button id="btnCopyCode" title="Copy code" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem">📋</button>
+        </div>
+      </div>
+    </div>
     <nav class="sidebar-nav">
       <a class="nav-item active" href="admin.html"><span class="nav-icon">⚙️</span> Dashboard</a>
       <a class="nav-item" href="all-sessions.html"><span class="nav-icon">📋</span> All Sessions</a>
@@ -223,6 +231,38 @@
 <div id="toast-container"></div>
 <script src="js/api.js"></script>
 <script src="js/admin.js"></script>
-<script>renderRecentSessions();</script>
+<script>
+  renderRecentSessions();
+  // Populate org badge from stored auth (and refresh from backend)
+  (function(){
+    const u = getAuthUser();
+    const nameEl = document.getElementById("orgName");
+    const codeEl = document.getElementById("orgCode");
+    if (nameEl) nameEl.textContent = u.orgName || "Organization";
+    if (codeEl) codeEl.textContent = u.orgCode || "—";
+    const copyBtn = document.getElementById("btnCopyCode");
+    if (copyBtn) copyBtn.addEventListener("click", () => {
+      const code = (getAuthUser().orgCode || "").trim();
+      if (code) navigator.clipboard?.writeText(code).then(
+        () => showToast("Invite code copied.", "success"),
+        () => showToast(code, "info"));
+    });
+    // Refresh org info (name/code/member count) from the API
+    apiFetch("/api/org").then(o => {
+      if (nameEl) nameEl.textContent = o.name;
+      if (codeEl) codeEl.textContent = o.org_code;
+      localStorage.setItem("disha_org_name", o.name);
+      localStorage.setItem("disha_org_code", o.org_code);
+    }).catch(()=>{});
+    // First-time admins get a one-off code reminder
+    try {
+      const just = sessionStorage.getItem("disha_show_orgcode");
+      if (just) {
+        showToast(`Your organization invite code is ${just} — share it so others can join.`, "success", 8000);
+        sessionStorage.removeItem("disha_show_orgcode");
+      }
+    } catch (_) {}
+  })();
+</script>
 </body>
 </html>

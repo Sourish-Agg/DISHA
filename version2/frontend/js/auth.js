@@ -1,4 +1,4 @@
-// frontend/js/auth.js — v2
+// frontend/js/auth.js — v3 (multi-tenant: optional org code on register)
 // Login + register. Does NOT use apiFetch() — uses raw fetch() directly
 // to avoid the 401→authLogout redirect loop on the login page itself.
 
@@ -13,12 +13,12 @@
       const user = await res.json();
       window.location.replace(user.role === "admin" ? "admin.html" : "index.html");
     } else {
-      // Invalid token — clear and stay
-      ["disha_token","disha_role","disha_name","disha_user_id"].forEach(k => localStorage.removeItem(k));
+      ["disha_token","disha_role","disha_name","disha_user_id",
+       "disha_org_id","disha_org_name","disha_org_code"].forEach(k => localStorage.removeItem(k));
     }
   } catch (_) {
-    // Backend unreachable — clear and stay on login page
-    ["disha_token","disha_role","disha_name","disha_user_id"].forEach(k => localStorage.removeItem(k));
+    ["disha_token","disha_role","disha_name","disha_user_id",
+     "disha_org_id","disha_org_name","disha_org_code"].forEach(k => localStorage.removeItem(k));
   }
 })();
 
@@ -27,7 +27,6 @@ function redirectAfterAuth(role) {
 }
 
 // ── Shared error display ──────────────────────────────────────────────────────
-// Does NOT rely on showToast — shows error inline inside the form itself.
 function showFormError(message) {
   let el = document.getElementById("formError");
   if (!el) {
@@ -58,7 +57,6 @@ async function authFetch(path, body) {
   });
   const data = await res.json();
   if (!res.ok) {
-    // Parse FastAPI error detail (may be string or array)
     const detail = data.detail;
     if (Array.isArray(detail)) {
       throw new Error(detail.map(e => {
@@ -95,7 +93,6 @@ if (loginForm) {
     }
   });
 
-  // Clear error when user starts typing
   loginForm.querySelectorAll("input").forEach(inp =>
     inp.addEventListener("input", clearFormError)
   );
@@ -116,16 +113,28 @@ if (registerForm) {
       return;
     }
 
+    // Optional organization invite code. Empty → backend creates a new org
+    // and makes this user its admin.
+    const orgCodeEl = document.getElementById("orgCode");
+    const orgCode   = orgCodeEl ? orgCodeEl.value.trim() : "";
+
+    const payload = {
+      name:     document.getElementById("name").value.trim(),
+      email:    document.getElementById("email").value.trim(),
+      password,
+    };
+    if (orgCode) payload.org_code = orgCode;
+
     btn.disabled = true;
     btn.textContent = "Creating account…";
 
     try {
-      const data = await authFetch("/api/auth/register", {
-        name:     document.getElementById("name").value.trim(),
-        email:    document.getElementById("email").value.trim(),
-        password,
-      });
+      const data = await authFetch("/api/auth/register", payload);
       authSave(data);
+      // Show the invite code to brand-new admins so they can share it.
+      if (data.role === "admin") {
+        try { sessionStorage.setItem("disha_show_orgcode", data.org_code); } catch (_) {}
+      }
       redirectAfterAuth(data.role);
     } catch (err) {
       showFormError(err.message);

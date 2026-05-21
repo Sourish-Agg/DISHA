@@ -371,7 +371,7 @@ function processLoop() {
 
       // ── Calibration phase ────────────────────────────────────────────────
       if (isCalibrating) {
-        const { done, progress } = calibrationStep(landmarks);
+        const { done, progress } = calibrationStep(landmarks, now);
         showCalibOverlay(progress);
         if (done) {
           isCalibrating = false;
@@ -385,7 +385,7 @@ function processLoop() {
 
         // ── Main detection ───────────────────────────────────────────────
         try {
-          const result = processFrame(landmarks, phoneConf, video, frameCount);
+          const result = processFrame(landmarks, phoneConf, video, frameCount, now);
           drawOverlay(ctx, landmarks, result);
           updateUI(result);
           if (result.alerts?.length) {
@@ -425,46 +425,96 @@ function drawOverlay(ctx, lm, result) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const W = canvas.width, H = canvas.height;
 
-  // Face mesh dots
-  ctx.fillStyle = "rgba(79,122,255,0.3)";
-  for (const p of lm) {
-    ctx.beginPath(); ctx.arc(p.x*W, p.y*H, 1.0, 0, Math.PI*2); ctx.fill();
+  // ── Face mesh (subtle dots, skip every other for performance) ──────────
+  ctx.fillStyle = "rgba(79,122,255,0.15)";
+  for (let i = 0; i < lm.length; i += 2) {
+    ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 0.8, 0, Math.PI*2); ctx.fill();
   }
 
-  // Eyes
+  // ── Eye contours (polyline — like version1) ──────────────────────────
   const eyeCol = (result.eyeStatus==="Drowsy"||result.eyeStatus==="Closing") ? "#ef4444" : "#22c55e";
-  for (const i of [33,160,158,133,153,144, 362,385,387,263,373,380]) {
-    ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.8, 0, Math.PI*2);
-    ctx.fillStyle = eyeCol; ctx.fill();
+  ctx.strokeStyle = eyeCol;
+  ctx.lineWidth = 1.5;
+
+  // Left eye contour
+  const leftEyeContour = [362,382,381,380,374,373,390,249,263,466,388,387,386,385,384,398];
+  ctx.beginPath();
+  leftEyeContour.forEach((idx, i) => {
+    const p = lm[idx];
+    i === 0 ? ctx.moveTo(p.x*W, p.y*H) : ctx.lineTo(p.x*W, p.y*H);
+  });
+  ctx.closePath(); ctx.stroke();
+
+  // Right eye contour
+  const rightEyeContour = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246];
+  ctx.beginPath();
+  rightEyeContour.forEach((idx, i) => {
+    const p = lm[idx];
+    i === 0 ? ctx.moveTo(p.x*W, p.y*H) : ctx.lineTo(p.x*W, p.y*H);
+  });
+  ctx.closePath(); ctx.stroke();
+
+  // Iris dots (version1 draws pupil indicators)
+  const irisCol = eyeCol;
+  for (const idx of [468, 473]) { // left iris center, right iris center
+    if (lm[idx]) {
+      ctx.beginPath(); ctx.arc(lm[idx].x*W, lm[idx].y*H, 3, 0, Math.PI*2);
+      ctx.fillStyle = irisCol; ctx.globalAlpha = 0.6; ctx.fill(); ctx.globalAlpha = 1.0;
+    }
   }
 
-  // Mouth
-  const mouthCol = result.isYawning ? "#f59e0b" : "rgba(255,255,255,0.25)";
-  for (const i of [61,291,13,14]) {
-    ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2.5, 0, Math.PI*2);
-    ctx.fillStyle = mouthCol; ctx.fill();
-  }
+  // ── Mouth contour (outer lip — like version1) ────────────────────────
+  const mouthCol = result.isYawning ? "#f59e0b" : "rgba(255,200,0,0.5)";
+  const outerLip = [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185];
+  ctx.strokeStyle = mouthCol;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  outerLip.forEach((idx, i) => {
+    const p = lm[idx];
+    i === 0 ? ctx.moveTo(p.x*W, p.y*H) : ctx.lineTo(p.x*W, p.y*H);
+  });
+  ctx.closePath(); ctx.stroke();
 
-  // Yaw arrow from nose
+  // ── Face bounding box (like version1's cv2.rectangle) ────────────────
+  const xs = [], ys = [];
+  for (let i = 0; i < Math.min(468, lm.length); i++) { xs.push(lm[i].x); ys.push(lm[i].y); }
+  const bx1 = Math.max(0, Math.min(...xs) * W - 10);
+  const by1 = Math.max(0, Math.min(...ys) * H - 10);
+  const bx2 = Math.min(W, Math.max(...xs) * W + 10);
+  const by2 = Math.min(H, Math.max(...ys) * H + 10);
+  const bboxCol = result.isDrowsy ? "#ef4444" : result.isDistracted ? "#f59e0b" : "rgba(0,200,240,0.5)";
+
+  ctx.strokeStyle = bboxCol;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx1, by1, bx2 - bx1, by2 - by1);
+
+  // ── HUD text on canvas (like version1's cv2.putText) ─────────────────
+  ctx.font = "11px 'Share Tech Mono', monospace";
+  ctx.fillStyle = bboxCol;
+  const hudText = `EAR:${(result._ear||0).toFixed(2)} MAR:${(result._mar||0).toFixed(2)} Y:${(result.yaw||0).toFixed(0)}° RISK:${result.riskScore||0}`;
+  ctx.fillText(hudText, bx1 + 2, Math.max(by1 - 6, 12));
+
+  // ── Yaw direction arrow from nose ────────────────────────────────────
   const nose = lm[1];
-  const col  = result.isDistracted ? "#ef4444" : "#22c55e";
+  const yawCol = result.isDistracted ? "#ef4444" : "#22c55e";
   const nx = nose.x*W, ny = nose.y*H;
-  const dx = Math.sin((result.yaw||0)*Math.PI/180)*45;
-  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  const dx = Math.sin((result.yaw||0)*Math.PI/180) * 40;
+  ctx.strokeStyle = yawCol; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx+dx, ny); ctx.stroke();
-  ctx.beginPath(); ctx.arc(nx, ny, 4, 0, Math.PI*2);
-  ctx.fillStyle = col; ctx.fill();
+  ctx.beginPath(); ctx.arc(nx, ny, 3, 0, Math.PI*2);
+  ctx.fillStyle = yawCol; ctx.fill();
 
+  // ── Progress bars ────────────────────────────────────────────────────
   // Distraction progress bar (bottom)
-  if (result.headDistrCount > 5) {
-    const pct = Math.min(result.headDistrCount/50, 1);
+  if ((result.headProgress || 0) > 0.1) {
+    const pct = result.headProgress;
     ctx.fillStyle = `rgba(239,68,68,${0.3+pct*0.5})`;
     ctx.fillRect(0, H-5, W*pct, 5);
   }
 
   // Eye closure progress bar (top)
-  if (result.drowsyCount > 5) {
-    const pct = Math.min(result.drowsyCount/15, 1);
+  if ((result.drowsyProgress || 0) > 0.1) {
+    const pct = result.drowsyProgress;
     ctx.fillStyle = `rgba(245,158,11,${0.3+pct*0.5})`;
     ctx.fillRect(0, 0, W*pct, 4);
   }
@@ -486,10 +536,16 @@ function updateUI(result) {
   badgeLowLight?.classList.toggle("hidden", !result.lowLightMode);
   updateStatusBadge(result.riskScore ?? 0);
 
-  // Eye status — human readable
+  // Eye status — show multi-cue count for transparency
   if (eyeStatusEl) {
     const s = result.eyeStatus || "--";
-    eyeStatusEl.textContent = s;
+    const cueCount = result.activeCueCount || 0;
+    // Show cue count when eyes are closing or drowsy so user understands
+    // why/why-not an alert fires (e.g. "Closing (1/2)" means 1 cue active, need 2)
+    const label = s === "Open" ? s
+      : s === "Drowsy" ? `Drowsy (${cueCount}/2 cues)`
+      : `${s} (${cueCount}/2)`;
+    eyeStatusEl.textContent = label;
     eyeStatusEl.className   = `metric-value ${s==="Open"?"ok":s==="Closing"?"warn":"danger"}`;
   }
   // Eye gauge: shows how close to threshold (inverted — lower EAR = fuller bar)
@@ -524,7 +580,7 @@ function updateUI(result) {
       : "--";
   }
   if (poseStatus) {
-    const distrPct = Math.min(100, Math.round((result.headDistrCount||0)/50*100));
+    const distrPct = Math.round((result.headProgress || 0) * 100);
     poseStatus.textContent = result.isDistracted
       ? "⚠ Distracted"
       : distrPct > 10 ? `Off-road ${distrPct}%` : "Forward ✓";
@@ -537,13 +593,14 @@ function updateUI(result) {
     phoneStatus.className   = `metric-value ${result.phoneDetected?"danger":"ok"}`;
   }
 
-  // LSTM temporal scores (if elements exist)
+  // Temporal scores with multi-cue indicators (if elements exist)
   const etEl = document.getElementById("eyeTemporal");
   const mtEl = document.getElementById("mouthTemporal");
   const htEl = document.getElementById("headTemporal");
   if (etEl && result.eyeTemporal != null) {
-    etEl.textContent = result.eyeTemporal.toFixed(2);
-    etEl.style.color = result.eyeTemporal > 0.35 ? "var(--danger)" : result.eyeTemporal > 0.2 ? "var(--warn)" : "var(--safe)";
+    const cue3 = result.drowsyCues?.temporal;
+    etEl.textContent = result.eyeTemporal.toFixed(2) + (cue3 ? " ●" : "");
+    etEl.style.color = cue3 ? "var(--danger)" : result.eyeTemporal > 0.2 ? "var(--warn)" : "var(--safe)";
   }
   if (mtEl && result.mouthTemporal != null) {
     mtEl.textContent = result.mouthTemporal.toFixed(2);
@@ -552,6 +609,16 @@ function updateUI(result) {
   if (htEl && result.headTemporal != null) {
     htEl.textContent = result.headTemporal.toFixed(2);
     htEl.style.color = result.headTemporal > 0.4 ? "var(--warn)" : "var(--safe)";
+  }
+
+  // Blink rate (shown below PERCLOS if element exists — user can add
+  // <span id="blinkRate"> to index.html's metrics panel)
+  const brEl = document.getElementById("blinkRate");
+  if (brEl && result.blinksPerMin != null) {
+    const bpm = result.blinksPerMin;
+    const dur = result.avgBlinkDur || 150;
+    brEl.textContent = `${bpm}/min · ${dur}ms avg`;
+    brEl.style.color = bpm > 20 || dur > 300 ? "var(--warn)" : bpm < 3 ? "var(--danger)" : "var(--safe)";
   }
 }
 

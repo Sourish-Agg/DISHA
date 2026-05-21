@@ -1,4 +1,4 @@
-// frontend/js/api.js — v5
+// frontend/js/api.js — v6 (multi-tenant aware)
 // Centralised API client + auth helpers + theme toggle
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -44,17 +44,19 @@ async function apiFetch(path, options = {}) {
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 function authSave(tokenData) {
-  localStorage.setItem("disha_token",   tokenData.access_token);
-  localStorage.setItem("disha_role",    tokenData.role);
-  localStorage.setItem("disha_name",    tokenData.name);
-  localStorage.setItem("disha_user_id", tokenData.user_id);
+  localStorage.setItem("disha_token",    tokenData.access_token);
+  localStorage.setItem("disha_role",     tokenData.role);
+  localStorage.setItem("disha_name",     tokenData.name);
+  localStorage.setItem("disha_user_id",  tokenData.user_id);
+  // Tenant info (multi-tenancy)
+  localStorage.setItem("disha_org_id",   tokenData.org_id   || "");
+  localStorage.setItem("disha_org_name", tokenData.org_name || "");
+  localStorage.setItem("disha_org_code", tokenData.org_code || "");
 }
 
 function _clearAuth() {
-  localStorage.removeItem("disha_token");
-  localStorage.removeItem("disha_role");
-  localStorage.removeItem("disha_name");
-  localStorage.removeItem("disha_user_id");
+  ["disha_token","disha_role","disha_name","disha_user_id",
+   "disha_org_id","disha_org_name","disha_org_code"].forEach(k => localStorage.removeItem(k));
 }
 
 function authLogout() {
@@ -64,19 +66,17 @@ function authLogout() {
 
 function getAuthUser() {
   return {
-    token:  localStorage.getItem("disha_token"),
-    role:   localStorage.getItem("disha_role"),
-    name:   localStorage.getItem("disha_name"),
-    userId: localStorage.getItem("disha_user_id"),
+    token:   localStorage.getItem("disha_token"),
+    role:    localStorage.getItem("disha_role"),
+    name:    localStorage.getItem("disha_name"),
+    userId:  localStorage.getItem("disha_user_id"),
+    orgId:   localStorage.getItem("disha_org_id"),
+    orgName: localStorage.getItem("disha_org_name"),
+    orgCode: localStorage.getItem("disha_org_code"),
   };
 }
 
 // ── Auth guards ───────────────────────────────────────────────────────────────
-// These are called at the top of every protected page.
-// They check localStorage synchronously (fast) and also verify with the
-// backend asynchronously — if the token is expired the next API call will
-// return 401 and the apiFetch handler above will force a logout.
-
 function requireAuth() {
   if (!localStorage.getItem("disha_token")) {
     window.location.replace("login.html");
@@ -85,7 +85,6 @@ function requireAuth() {
 }
 
 function requireUser() {
-  // Regular users only — admins go to admin.html
   if (!localStorage.getItem("disha_token")) {
     window.location.replace("login.html");
     throw new Error("Not authenticated");
@@ -97,7 +96,6 @@ function requireUser() {
 }
 
 function requireAdmin() {
-  // Admins only — users go to index.html
   if (!localStorage.getItem("disha_token")) {
     window.location.replace("login.html");
     throw new Error("Not authenticated");
