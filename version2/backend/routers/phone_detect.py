@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # COCO class 67 = cell phone
 PHONE_CLASS_ID = 67
-CONFIDENCE_THRESHOLD = 0.40
+CONFIDENCE_THRESHOLD = 0.65  # Raised — filters remotes, glasses cases etc
 
 # Load YOLOv8n once at module import — non-fatal if ultralytics not installed
 _yolo = None
@@ -48,11 +48,6 @@ class PhoneDetectResponse(BaseModel):
     detected:   bool
     confidence: float
     available:  bool   # False if YOLOv8 not installed
-
-
-@router.on_event("startup")  # pre-warm the model
-async def _warmup():
-    _load_yolo()
 
 
 @router.post("/detect", response_model=PhoneDetectResponse)

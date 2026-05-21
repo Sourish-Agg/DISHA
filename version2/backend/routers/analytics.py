@@ -137,11 +137,12 @@ async def session_summary(
         "timestamp": peak_event["timestamp"].isoformat() if peak_event and hasattr(peak_event.get("timestamp"), "isoformat") else None,
     } if peak_event else None
 
+    ended_at = session.get("ended_at")
     return {
         "session_id":       session_id,
         "driver_name":      session.get("driver_name"),
         "started_at":       session["started_at"].isoformat(),
-        "ended_at":         session.get("ended_at", {}) and session["ended_at"].isoformat(),
+        "ended_at":         ended_at.isoformat() if ended_at else None,
         "duration_seconds": session.get("duration_seconds"),
         "total_alerts":     len(events),
         "max_risk_score":   session.get("max_risk_score", 0),

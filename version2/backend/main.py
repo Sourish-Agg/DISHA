@@ -1,6 +1,10 @@
 # backend/main.py
-# FastAPI application entry point.
-# Run with: uvicorn main:app --reload  (from the backend/ directory)
+# FastAPI application entrypoint.
+# Run from inside the backend/ directory:
+#     uvicorn main:app --reload --port 8000
+#
+# Wires together all routers, manages the MongoDB connection lifecycle,
+# applies CORS, and pre-warms the YOLOv8 phone-detection model on startup.
 
 import logging
 from contextlib import asynccontextmanager
@@ -10,64 +14,65 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.database import connect_db, close_db
-from routers import auth, sessions, events, admin, users, analytics, phone_detect
 
-# ── Logging setup ─────────────────────────────────────────────────────────────
+# Routers
+from routers import auth, users, sessions, events, analytics, admin, phone_detect
+
 logging.basicConfig(
-    level=logging.DEBUG if settings.APP_ENV == "development" else logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-7s  %(name)s  %(message)s",
 )
 logger = logging.getLogger("disha")
 
 
-# ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # ── Startup ──────────────────────────────────────────────────────────────
     await connect_db()
-    logger.info("D.I.S.H.A. API started  (env=%s)", settings.APP_ENV)
+
+    # Pre-warm the YOLOv8 model so the first /api/phone/detect call isn't slow.
+    # Non-fatal: if ultralytics isn't installed, phone detection just reports
+    # available=False and the app keeps running.
+    try:
+        phone_detect._load_yolo()
+    except Exception as e:  # pragma: no cover
+        logger.warning("YOLO warmup skipped: %s", e)
+
+    logger.info("DISHA backend started (env=%s).", settings.APP_ENV)
     yield
-    # Shutdown
+
+    # ── Shutdown ─────────────────────────────────────────────────────────────
     await close_db()
-    logger.info("D.I.S.H.A. API stopped.")
+    logger.info("DISHA backend shut down.")
 
 
-# ── Application ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="D.I.S.H.A. API",
-    description="Driver Insight & Safety Heuristics Assistant — Backend API",
-    version="1.0.0",
+    description="Driver Insight & Safety Heuristics Assistant — backend API.",
+    version="2.0.0",
     lifespan=lifespan,
-    # Disable docs in production
-    docs_url="/docs" if settings.APP_ENV == "development" else None,
-    redoc_url=None,
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
-# Development: allow all origins so VS Code Live Server (any port) never causes 400s.
-# Production:  restrict to the explicit list in .env CORS_ORIGINS.
-# NOTE: allow_credentials must be False when allow_origins=["*"] (browser security rule).
-_cors_origins = ["*"] if settings.APP_ENV == "development" else settings.cors_origins_list
+# ── CORS ───────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=False if settings.APP_ENV == "development" else True,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Routers ───────────────────────────────────────────────────────────────────
+# ── Routers ─────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(sessions.router)
 app.include_router(events.router)
-app.include_router(admin.router)
-app.include_router(users.router)
 app.include_router(analytics.router)
+app.include_router(admin.router)
 app.include_router(phone_detect.router)
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
-@app.get("/health", tags=["health"])
-async def health():
-    return {"status": "ok", "env": settings.APP_ENV}
+@app.get("/", tags=["health"])
+async def root():
+    """Simple health check."""
+    return {"status": "ok", "service": "disha-api", "env": settings.APP_ENV}
