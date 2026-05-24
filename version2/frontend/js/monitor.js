@@ -205,6 +205,7 @@ async function doStop(notes) {
   notesModal.classList.add("hidden");
   isMonitoring  = false;
   isCalibrating = false;
+  window.DishaCar.stopCar();
   cancelAnimationFrame(animFrameId);
   stream && stream.getTracks().forEach(t => t.stop());
   stream = null;
@@ -363,6 +364,7 @@ function processLoop() {
       faceLostFrames++;
       if (faceLostFrames >= FACE_LOST_THRESHOLD) {
         updateFaceStatus(false);
+        window.DishaCar.stopCar();
         // Don't call processFrame — PERCLOS is NOT updated during face-lost
       }
     } else {
@@ -388,6 +390,7 @@ function processLoop() {
           const result = processFrame(landmarks, phoneConf, video, frameCount, now);
           drawOverlay(ctx, landmarks, result);
           updateUI(result);
+          window.DishaCar.updateCar(result);
           if (result.alerts?.length) {
             result.alerts.forEach(a => handleAlert(a, result));
           }
